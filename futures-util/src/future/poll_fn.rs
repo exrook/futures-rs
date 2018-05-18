@@ -3,8 +3,8 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll};
 use futures_core::task;
+use futures_core::{Future, Poll};
 
 /// A future which adapts a function returning `Poll`.
 ///
@@ -37,13 +37,15 @@ pub struct PollFn<F> {
 /// # }
 /// ```
 pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T>
+where
+    F: FnMut(&mut task::Context) -> Poll<T>,
 {
     PollFn { inner: f }
 }
 
 impl<T, F> Future for PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T> + Unpin
+where
+    F: FnMut(&mut task::Context) -> Poll<T> + Unpin,
 {
     type Output = T;
 

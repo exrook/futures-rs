@@ -2,8 +2,8 @@
 
 use core::mem::PinMut;
 
-use Poll;
 use task;
+use Poll;
 
 /// A stream of values produced asynchronously.
 ///
@@ -49,7 +49,8 @@ pub trait Stream {
 
     /// A convenience for calling `Stream::poll_next` on `Unpin` stream types.
     fn poll_next_unpin(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
-        where Self: Unpin
+    where
+        Self: Unpin,
     {
         PinMut::new(self).poll_next(cx)
     }

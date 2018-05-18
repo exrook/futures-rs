@@ -135,24 +135,19 @@ impl Waker {
 impl Clone for Waker {
     #[inline]
     fn clone(&self) -> Self {
-        unsafe {
-            (*self.inner).clone_raw()
-        }
+        unsafe { (*self.inner).clone_raw() }
     }
 }
 
 impl fmt::Debug for Waker {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Waker")
-            .finish()
+        f.debug_struct("Waker").finish()
     }
 }
 
 impl Drop for Waker {
     fn drop(&mut self) {
-        unsafe {
-            (*self.inner).drop_raw()
-        }
+        unsafe { (*self.inner).drop_raw() }
     }
 }
 

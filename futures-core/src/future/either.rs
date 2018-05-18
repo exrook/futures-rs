@@ -1,12 +1,13 @@
-use {task, Future, Stream, Poll};
+use {task, Future, Poll, Stream};
 
 use core::mem::PinMut;
 
 use either::Either;
 
 impl<A, B> Future for Either<A, B>
-    where A: Future,
-          B: Future<Output = A::Output>
+where
+    A: Future,
+    B: Future<Output = A::Output>,
 {
     type Output = A::Output;
 
@@ -21,8 +22,9 @@ impl<A, B> Future for Either<A, B>
 }
 
 impl<A, B> Stream for Either<A, B>
-    where A: Stream,
-          B: Stream<Item = A::Item>
+where
+    A: Stream,
+    B: Stream<Item = A::Item>,
 {
     type Item = A::Item;
 

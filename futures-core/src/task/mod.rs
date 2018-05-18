@@ -1,14 +1,14 @@
 //! Task notification.
 
-use core::mem::{self, PinMut};
 use core::fmt;
+use core::mem::{self, PinMut};
 
 use {Future, Poll};
 
 mod wake;
-pub use self::wake::{UnsafeWake, Waker};
 #[cfg(feature = "std")]
 pub use self::wake::Wake;
+pub use self::wake::{UnsafeWake, Waker};
 
 mod context;
 pub use self::context::Context;
@@ -28,8 +28,7 @@ pub struct TaskObj {
 
 impl fmt::Debug for TaskObj {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("TakObj")
-            .finish()
+        f.debug_struct("TakObj").finish()
     }
 }
 
@@ -71,11 +70,7 @@ pub unsafe trait UnsafePoll: Send + 'static {
 impl TaskObj {
     /// Create a `TaskObj` from a custom trait object representation.
     pub fn from_poll_task<T: UnsafePoll>(t: T) -> TaskObj {
-        TaskObj {
-            ptr: t.into_raw(),
-            poll: T::poll,
-            drop: T::drop,
-        }
+        TaskObj { ptr: t.into_raw(), poll: T::poll, drop: T::drop }
     }
 
     /// Poll the task.
@@ -83,17 +78,13 @@ impl TaskObj {
     /// The semantics here are identical to that for futures, but unlike
     /// futures only an `&mut self` reference is needed here.
     pub fn poll_task(&mut self, cx: &mut Context) -> Poll<()> {
-        unsafe {
-            (self.poll)(self.ptr, cx)
-        }
+        unsafe { (self.poll)(self.ptr, cx) }
     }
 }
 
 impl Drop for TaskObj {
     fn drop(&mut self) {
-        unsafe {
-            (self.drop)(self.ptr)
-        }
+        unsafe { (self.drop)(self.ptr) }
     }
 }
 

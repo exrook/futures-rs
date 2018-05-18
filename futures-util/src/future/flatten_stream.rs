@@ -1,8 +1,8 @@
 use core::fmt;
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll, Stream};
 use futures_core::task;
+use futures_core::{Future, Poll, Stream};
 
 /// Future for the `flatten_stream` combinator, flattening a
 /// future-of-a-stream to get just the result of the final stream as a stream.
@@ -10,24 +10,21 @@ use futures_core::task;
 /// This is created by the `Future::flatten_stream` method.
 #[must_use = "streams do nothing unless polled"]
 pub struct FlattenStream<F: Future> {
-    state: State<F>
+    state: State<F>,
 }
 
 impl<F> fmt::Debug for FlattenStream<F>
-    where F: Future + fmt::Debug,
-          F::Output: fmt::Debug,
+where
+    F: Future + fmt::Debug,
+    F::Output: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("FlattenStream")
-            .field("state", &self.state)
-            .finish()
+        fmt.debug_struct("FlattenStream").field("state", &self.state).finish()
     }
 }
 
 pub fn new<F: Future>(f: F) -> FlattenStream<F> {
-    FlattenStream {
-        state: State::Future(f)
-    }
+    FlattenStream { state: State::Future(f) }
 }
 
 #[derive(Debug)]
@@ -39,8 +36,9 @@ enum State<F: Future> {
 }
 
 impl<F> Stream for FlattenStream<F>
-    where F: Future,
-          F::Output: Stream,
+where
+    F: Future,
+    F::Output: Stream,
 {
     type Item = <F::Output as Stream>::Item;
 
@@ -54,8 +52,8 @@ impl<F> Stream for FlattenStream<F>
                     match unsafe { PinMut::new_unchecked(f) }.poll(cx) {
                         Poll::Pending => {
                             // State is not changed, early return.
-                            return Poll::Pending
-                        },
+                            return Poll::Pending;
+                        }
                         Poll::Ready(stream) => {
                             // Future resolved to stream.
                             // We do not return, but poll that

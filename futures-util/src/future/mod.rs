@@ -23,8 +23,8 @@ mod into_stream;
 // mod join;
 mod map;
 // mod select;
-mod then;
 mod inspect;
+mod then;
 
 // impl details
 mod chain;
@@ -37,8 +37,8 @@ pub use self::into_stream::IntoStream;
 // pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::map::Map;
 // pub use self::select::Select;
-pub use self::then::Then;
 pub use self::inspect::Inspect;
+pub use self::then::Then;
 
 pub use either::Either;
 
@@ -94,8 +94,9 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
-        where F: FnOnce(Self::Output) -> U,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Output) -> U,
+        Self: Sized,
     {
         assert_future::<U, _>(map::new(self, f))
     }
@@ -126,149 +127,150 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(future_of_4), 4);
     /// ```
     fn then<B, F>(self, f: F) -> Then<Self, B, F>
-        where F: FnOnce(Self::Output) -> B,
-              B: Future,
-              Self: Sized,
+    where
+        F: FnOnce(Self::Output) -> B,
+        B: Future,
+        Self: Sized,
     {
         assert_future::<B::Output, _>(then::new(self, f))
     }
 
     /* TODO
-    /// Waits for either one of two differently-typed futures to complete.
-    ///
-    /// This function will return a new future which awaits for either this or
-    /// the `other` future to complete. The returned future will finish with
-    /// both the value resolved and a future representing the completion of the
-    /// other work.
-    ///
-    /// Note that this function consumes the receiving futures and returns a
-    /// wrapped version of them.
-    ///
-    /// Also note that if both this and the second future have the same
-    /// success/error type you can use the `Either::split` method to
-    /// conveniently extract out the value at the end.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future::{self, Either};
-    ///
-    /// // A poor-man's join implemented on top of select
-    ///
-    /// fn join<A, B, E>(a: A, b: B) -> Box<Future<Item=(A::Item, B::Item), Error=E>>
-    ///     where A: Future<Error = E> + 'static,
-    ///           B: Future<Error = E> + 'static,
-    ///           E: 'static,
-    /// {
-    ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
-    ///         match res {
-    ///             Ok(Either::Left((x, b))) => Box::new(b.map(move |y| (x, y))),
-    ///             Ok(Either::Right((y, a))) => Box::new(a.map(move |x| (x, y))),
-    ///             Err(Either::Left((e, _))) => Box::new(future::err(e)),
-    ///             Err(Either::Right((e, _))) => Box::new(future::err(e)),
-    ///         }
-    ///     }))
-    /// }
-    /// # fn main() {}
-    /// ```
-    fn select<B>(self, other: B) -> Select<Self, B::Future>
-        where B: IntoFuture, Self: Sized
-    {
-        select::new(self, other.into_future())
-    }
+        /// Waits for either one of two differently-typed futures to complete.
+        ///
+        /// This function will return a new future which awaits for either this or
+        /// the `other` future to complete. The returned future will finish with
+        /// both the value resolved and a future representing the completion of the
+        /// other work.
+        ///
+        /// Note that this function consumes the receiving futures and returns a
+        /// wrapped version of them.
+        ///
+        /// Also note that if both this and the second future have the same
+        /// success/error type you can use the `Either::split` method to
+        /// conveniently extract out the value at the end.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// # extern crate futures;
+        /// use futures::prelude::*;
+        /// use futures::future::{self, Either};
+        ///
+        /// // A poor-man's join implemented on top of select
+        ///
+        /// fn join<A, B, E>(a: A, b: B) -> Box<Future<Item=(A::Item, B::Item), Error=E>>
+        ///     where A: Future<Error = E> + 'static,
+        ///           B: Future<Error = E> + 'static,
+        ///           E: 'static,
+        /// {
+        ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
+        ///         match res {
+        ///             Ok(Either::Left((x, b))) => Box::new(b.map(move |y| (x, y))),
+        ///             Ok(Either::Right((y, a))) => Box::new(a.map(move |x| (x, y))),
+        ///             Err(Either::Left((e, _))) => Box::new(future::err(e)),
+        ///             Err(Either::Right((e, _))) => Box::new(future::err(e)),
+        ///         }
+        ///     }))
+        /// }
+        /// # fn main() {}
+        /// ```
+        fn select<B>(self, other: B) -> Select<Self, B::Future>
+            where B: IntoFuture, Self: Sized
+        {
+            select::new(self, other.into_future())
+        }
 
-    /// Joins the result of two futures, waiting for them both to complete.
-    ///
-    /// This function will return a new future which awaits both this and the
-    /// `other` future to complete. The returned future will finish with a tuple
-    /// of both results.
-    ///
-    /// Both futures must have the same error type, and if either finishes with
-    /// an error then the other will be dropped and that error will be
-    /// returned.
-    ///
-    /// Note that this function consumes the receiving future and returns a
-    /// wrapped version of it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures_executor::block_on;
-    ///
-    /// # fn main() {
-    /// let a = future::ok::<u32, u32>(1);
-    /// let b = future::ok::<u32, u32>(2);
-    /// let pair = a.join(b);
-    ///
-    /// assert_eq!(block_on(pair), Ok((1, 2)));
-    /// # }
-    /// ```
-    ///
-    /// If one or both of the joined `Future`s is errored, the resulting
-    /// `Future` will be errored:
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures_executor::block_on;
-    ///
-    /// # fn main() {
-    /// let a = future::ok::<u32, u32>(1);
-    /// let b = future::err::<u32, u32>(2);
-    /// let pair = a.join(b);
-    ///
-    /// assert_eq!(block_on(pair), Err(2));
-    /// # }
-    /// ```
-    fn join<B>(self, other: B) -> Join<Self, B::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              Self: Sized,
-    {
-        let f = join::new(self, other.into_future());
-        assert_future::<(Self::Item, B::Item), Self::Error, _>(f)
-    }
+        /// Joins the result of two futures, waiting for them both to complete.
+        ///
+        /// This function will return a new future which awaits both this and the
+        /// `other` future to complete. The returned future will finish with a tuple
+        /// of both results.
+        ///
+        /// Both futures must have the same error type, and if either finishes with
+        /// an error then the other will be dropped and that error will be
+        /// returned.
+        ///
+        /// Note that this function consumes the receiving future and returns a
+        /// wrapped version of it.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// # extern crate futures;
+        /// # extern crate futures_executor;
+        /// use futures::prelude::*;
+        /// use futures::future;
+        /// use futures_executor::block_on;
+        ///
+        /// # fn main() {
+        /// let a = future::ok::<u32, u32>(1);
+        /// let b = future::ok::<u32, u32>(2);
+        /// let pair = a.join(b);
+        ///
+        /// assert_eq!(block_on(pair), Ok((1, 2)));
+        /// # }
+        /// ```
+        ///
+        /// If one or both of the joined `Future`s is errored, the resulting
+        /// `Future` will be errored:
+        ///
+        /// ```
+        /// # extern crate futures;
+        /// # extern crate futures_executor;
+        /// use futures::prelude::*;
+        /// use futures::future;
+        /// use futures_executor::block_on;
+        ///
+        /// # fn main() {
+        /// let a = future::ok::<u32, u32>(1);
+        /// let b = future::err::<u32, u32>(2);
+        /// let pair = a.join(b);
+        ///
+        /// assert_eq!(block_on(pair), Err(2));
+        /// # }
+        /// ```
+        fn join<B>(self, other: B) -> Join<Self, B::Future>
+            where B: IntoFuture<Error=Self::Error>,
+                  Self: Sized,
+        {
+            let f = join::new(self, other.into_future());
+            assert_future::<(Self::Item, B::Item), Self::Error, _>(f)
+        }
 
-    /// Same as `join`, but with more futures.
-    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Future, C::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              Self: Sized,
-    {
-        join::new3(self, b.into_future(), c.into_future())
-    }
+        /// Same as `join`, but with more futures.
+        fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Future, C::Future>
+            where B: IntoFuture<Error=Self::Error>,
+                  C: IntoFuture<Error=Self::Error>,
+                  Self: Sized,
+        {
+            join::new3(self, b.into_future(), c.into_future())
+        }
 
-    /// Same as `join`, but with more futures.
-    fn join4<B, C, D>(self, b: B, c: C, d: D)
-                      -> Join4<Self, B::Future, C::Future, D::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              Self: Sized,
-    {
-        join::new4(self, b.into_future(), c.into_future(), d.into_future())
-    }
+        /// Same as `join`, but with more futures.
+        fn join4<B, C, D>(self, b: B, c: C, d: D)
+                          -> Join4<Self, B::Future, C::Future, D::Future>
+            where B: IntoFuture<Error=Self::Error>,
+                  C: IntoFuture<Error=Self::Error>,
+                  D: IntoFuture<Error=Self::Error>,
+                  Self: Sized,
+        {
+            join::new4(self, b.into_future(), c.into_future(), d.into_future())
+        }
 
-    /// Same as `join`, but with more futures.
-    fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E)
-                         -> Join5<Self, B::Future, C::Future, D::Future, E::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              E: IntoFuture<Error=Self::Error>,
-              Self: Sized,
-    {
-        join::new5(self, b.into_future(), c.into_future(), d.into_future(),
-                   e.into_future())
-    }
-*/
+        /// Same as `join`, but with more futures.
+        fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E)
+                             -> Join5<Self, B::Future, C::Future, D::Future, E::Future>
+            where B: IntoFuture<Error=Self::Error>,
+                  C: IntoFuture<Error=Self::Error>,
+                  D: IntoFuture<Error=Self::Error>,
+                  E: IntoFuture<Error=Self::Error>,
+                  Self: Sized,
+        {
+            join::new5(self, b.into_future(), c.into_future(), d.into_future(),
+                       e.into_future())
+        }
+    */
 
     /// Wrap this future in an `Either` future, making it the left-hand variant
     /// of that `Either`.
@@ -295,8 +297,9 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     fn left_future<B>(self) -> Either<Self, B>
-        where B: Future<Output = Self::Output>,
-              Self: Sized
+    where
+        B: Future<Output = Self::Output>,
+        Self: Sized,
     {
         Either::Left(self)
     }
@@ -325,8 +328,9 @@ pub trait FutureExt: Future {
     /// assert_eq!(false, block_on(future));
     /// # }
     fn right_future<A>(self) -> Either<A, Self>
-        where A: Future<Output = Self::Output>,
-              Self: Sized,
+    where
+        A: Future<Output = Self::Output>,
+        Self: Sized,
     {
         Either::Right(self)
     }
@@ -353,7 +357,8 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     fn into_stream(self) -> IntoStream<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         into_stream::new(self)
     }
@@ -388,8 +393,9 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     fn flatten(self) -> Flatten<Self>
-        where Self::Output: Future,
-        Self: Sized
+    where
+        Self::Output: Future,
+        Self: Sized,
     {
         let f = flatten::new(self);
         assert_future::<<<Self as Future>::Output as Future>::Output, _>(f)
@@ -443,8 +449,9 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     fn flatten_stream(self) -> FlattenStream<Self>
-        where Self::Output: Stream,
-              Self: Sized
+    where
+        Self::Output: Stream,
+        Self: Sized,
     {
         flatten_stream::new(self)
     }
@@ -465,7 +472,8 @@ pub trait FutureExt: Future {
     /// This combinator will drop this future as soon as it's been completed to
     /// ensure resources are reclaimed as soon as possible.
     fn fuse(self) -> Fuse<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         let f = fuse::new(self);
         assert_future::<Self::Output, _>(f)
@@ -494,8 +502,9 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
-        where F: FnOnce(&Self::Output) -> (),
-              Self: Sized,
+    where
+        F: FnOnce(&Self::Output) -> (),
+        Self: Sized,
     {
         assert_future::<Self::Output, _>(inspect::new(self, f))
     }
@@ -538,71 +547,72 @@ pub trait FutureExt: Future {
     /// ```
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
-        where Self: Sized + ::std::panic::UnwindSafe
+    where
+        Self: Sized + ::std::panic::UnwindSafe,
     {
         catch_unwind::new(self)
     }
 
     /* TODO
-    /// Create a cloneable handle to this future where all handles will resolve
-    /// to the same result.
-    ///
-    /// The shared() method provides a method to convert any future into a
-    /// cloneable future. It enables a future to be polled by multiple threads.
-    ///
-    /// The returned `Shared` future resolves with `SharedItem<Self::Output>`,
-    /// which implements `Deref` to allow shared access to the underlying
-    /// result. Ownership of the underlying value cannot currently be reclaimed.
-    ///
-    /// This method is only available when the `std` feature of this
-    /// library is activated, and it is activated by default.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures_executor::block_on;
-    ///
-    /// # fn main() {
-    /// let future = future::ready(6);
-    /// let shared1 = future.shared();
-    /// let shared2 = shared1.clone();
-    ///
-    /// assert_eq!(6, *block_on(shared1));
-    /// assert_eq!(6, *block_on(shared2));
-    /// # }
-    /// ```
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use std::thread;
-    ///
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures_executor::block_on;
-    ///
-    /// # fn main() {
-    /// let future = future::ready(6);
-    /// let shared1 = future.shared();
-    /// let shared2 = shared1.clone();
-    /// let join_handle = thread::spawn(move || {
-    ///     assert_eq!(6, *block_on(shared2));
-    /// });
-    /// assert_eq!(6, *block_on(shared1));
-    /// join_handle.join().unwrap();
-    /// # }
-    /// ```
-    #[cfg(feature = "std")]
-    fn shared(self) -> Shared<Self>
-        where Self: Sized
-    {
-        shared::new(self)
-    }
-*/
+        /// Create a cloneable handle to this future where all handles will resolve
+        /// to the same result.
+        ///
+        /// The shared() method provides a method to convert any future into a
+        /// cloneable future. It enables a future to be polled by multiple threads.
+        ///
+        /// The returned `Shared` future resolves with `SharedItem<Self::Output>`,
+        /// which implements `Deref` to allow shared access to the underlying
+        /// result. Ownership of the underlying value cannot currently be reclaimed.
+        ///
+        /// This method is only available when the `std` feature of this
+        /// library is activated, and it is activated by default.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// # extern crate futures;
+        /// # extern crate futures_executor;
+        /// use futures::prelude::*;
+        /// use futures::future;
+        /// use futures_executor::block_on;
+        ///
+        /// # fn main() {
+        /// let future = future::ready(6);
+        /// let shared1 = future.shared();
+        /// let shared2 = shared1.clone();
+        ///
+        /// assert_eq!(6, *block_on(shared1));
+        /// assert_eq!(6, *block_on(shared2));
+        /// # }
+        /// ```
+        ///
+        /// ```
+        /// # extern crate futures;
+        /// # extern crate futures_executor;
+        /// use std::thread;
+        ///
+        /// use futures::prelude::*;
+        /// use futures::future;
+        /// use futures_executor::block_on;
+        ///
+        /// # fn main() {
+        /// let future = future::ready(6);
+        /// let shared1 = future.shared();
+        /// let shared2 = shared1.clone();
+        /// let join_handle = thread::spawn(move || {
+        ///     assert_eq!(6, *block_on(shared2));
+        /// });
+        /// assert_eq!(6, *block_on(shared1));
+        /// join_handle.join().unwrap();
+        /// # }
+        /// ```
+        #[cfg(feature = "std")]
+        fn shared(self) -> Shared<Self>
+            where Self: Sized
+        {
+            shared::new(self)
+        }
+    */
 
     /// Assigns the provided `Executor` to be used when spawning tasks
     /// from within the future.
@@ -625,8 +635,9 @@ pub trait FutureExt: Future {
     /// ```
     #[cfg(feature = "std")]
     fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
-        where Self: Sized,
-              E: ::futures_core::executor::Executor
+    where
+        Self: Sized,
+        E: ::futures_core::executor::Executor,
     {
         with_executor::new(self, executor)
     }
@@ -635,7 +646,8 @@ pub trait FutureExt: Future {
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
 fn assert_future<A, F>(t: F) -> F
-    where F: Future<Output=A>,
+where
+    F: Future<Output = A>,
 {
     t
 }

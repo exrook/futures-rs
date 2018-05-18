@@ -16,7 +16,8 @@ pub enum Poll<T> {
 impl<T> Poll<T> {
     /// Change the success value of this `Poll` with the closure provided
     pub fn map<U, F>(self, f: F) -> Poll<U>
-        where F: FnOnce(T) -> U
+    where
+        F: FnOnce(T) -> U,
     {
         match self {
             Poll::Ready(t) => Poll::Ready(f(t)),

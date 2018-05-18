@@ -1,8 +1,8 @@
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll};
-use futures_core::task;
 use super::chain::Chain;
+use futures_core::task;
+use futures_core::{Future, Poll};
 
 /// Future for the `then` combinator, chaining computations on the end of
 /// another future regardless of its outcome.
@@ -10,23 +10,27 @@ use super::chain::Chain;
 /// This is created by the `Future::then` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Then<A, B, F> where A: Future, B: Future {
+pub struct Then<A, B, F>
+where
+    A: Future,
+    B: Future,
+{
     state: Chain<A, B, F>,
 }
 
 pub fn new<A, B, F>(future: A, f: F) -> Then<A, B, F>
-    where A: Future,
-          B: Future,
+where
+    A: Future,
+    B: Future,
 {
-    Then {
-        state: Chain::new(future, f),
-    }
+    Then { state: Chain::new(future, f) }
 }
 
 impl<A, B, F> Future for Then<A, B, F>
-    where A: Future,
-          B: Future,
-          F: FnOnce(A::Output) -> B,
+where
+    A: Future,
+    B: Future,
+    F: FnOnce(A::Output) -> B,
 {
     type Output = B::Output;
 

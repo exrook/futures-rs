@@ -35,7 +35,7 @@ pub trait Executor {
 /// Provides the reason that an executor was unable to spawn.
 #[derive(Debug)]
 pub struct SpawnErrorKind {
-    _a: ()
+    _a: (),
 }
 
 impl SpawnErrorKind {

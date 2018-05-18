@@ -19,7 +19,8 @@ impl<'a> Context<'a> {
     /// - A means of waking the task
     /// - A means of spawning new tasks, i.e. an [executor]()
     pub fn new<E>(waker: &'a Waker, executor: &'a mut E) -> Context<'a>
-        where E: Executor
+    where
+        E: Executor,
     {
         Context { waker, executor }
     }
@@ -38,7 +39,8 @@ impl<'a> Context<'a> {
     /// This advanced method is primarily used when building "internal
     /// schedulers" within a task.
     pub fn with_executor<'b, E>(&'b mut self, executor: &'b mut E) -> Context<'b>
-        where E: Executor
+    where
+        E: Executor,
     {
         Context { waker: self.waker, executor }
     }
@@ -64,8 +66,7 @@ impl<'a> Context<'a> {
 
 impl<'a> fmt::Debug for Context<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Context")
-            .finish()
+        f.debug_struct("Context").finish()
     }
 }
 

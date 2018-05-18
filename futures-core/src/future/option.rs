@@ -1,8 +1,8 @@
 //! Definition of the `Option` (optional step) combinator
 
-use {Future, Poll};
-use task;
 use core::mem::PinMut;
+use task;
+use {Future, Poll};
 
 /// A future representing a value which may or may not be present.
 ///

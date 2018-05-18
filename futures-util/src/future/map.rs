@@ -1,30 +1,32 @@
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll};
 use futures_core::task;
+use futures_core::{Future, Poll};
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
 /// This is created by the `Future::map` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Map<A, F> where A: Future {
+pub struct Map<A, F>
+where
+    A: Future,
+{
     future: A,
     f: Option<F>,
 }
 
 pub fn new<A, F>(future: A, f: F) -> Map<A, F>
-    where A: Future,
+where
+    A: Future,
 {
-    Map {
-        future: future,
-        f: Some(f),
-    }
+    Map { future: future, f: Some(f) }
 }
 
 impl<U, A, F> Future for Map<A, F>
-    where A: Future,
-          F: FnOnce(A::Output) -> U,
+where
+    A: Future,
+    F: FnOnce(A::Output) -> U,
 {
     type Output = U;
 
@@ -34,9 +36,7 @@ impl<U, A, F> Future for Map<A, F>
             Poll::Ready(e) => e,
         };
 
-        let f = unsafe {
-            PinMut::get_mut(self).f.take().expect("cannot poll Map twice")
-        };
+        let f = unsafe { PinMut::get_mut(self).f.take().expect("cannot poll Map twice") };
         Poll::Ready(f(e))
     }
 }

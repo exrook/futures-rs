@@ -3,12 +3,12 @@ extern crate futures;
 extern crate futures_channel;
 extern crate futures_executor;
 
-use std::thread;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
 
-use futures::prelude::*;
 use futures::future::poll_fn;
+use futures::prelude::*;
 use futures::task;
 use futures_channel::mpsc;
 use futures_channel::oneshot;
@@ -81,7 +81,7 @@ fn send_shared_recv() {
 fn send_recv_threads() {
     let (tx, rx) = mpsc::channel::<i32>(16);
 
-    let t = thread::spawn(move|| {
+    let t = thread::spawn(move || {
         block_on(tx.send(1)).unwrap();
     });
 
@@ -96,7 +96,7 @@ fn send_recv_threads_no_capacity() {
     let (tx, rx) = mpsc::channel::<i32>(0);
 
     let (readytx, readyrx) = mpsc::channel::<()>(2);
-    let t = thread::spawn(move|| {
+    let t = thread::spawn(move || {
         let readytx = readytx.sink_map_err(|_| panic!());
         let (a, b) = block_on(tx.send(1).join(readytx.send(()))).unwrap();
         block_on(a.send(2).join(b.send(()))).unwrap();
@@ -219,7 +219,7 @@ fn stress_shared_unbounded() {
     const NTHREADS: u32 = 8;
     let (tx, rx) = mpsc::unbounded::<i32>();
 
-    let t = thread::spawn(move|| {
+    let t = thread::spawn(move || {
         let result: Vec<_> = block_on(rx.collect()).unwrap();
         assert_eq!(result.len(), (AMT * NTHREADS) as usize);
         for item in result {
@@ -230,7 +230,7 @@ fn stress_shared_unbounded() {
     for _ in 0..NTHREADS {
         let tx = tx.clone();
 
-        thread::spawn(move|| {
+        thread::spawn(move || {
             for _ in 0..AMT {
                 tx.unbounded_send(1).unwrap();
             }
@@ -248,7 +248,7 @@ fn stress_shared_bounded_hard() {
     const NTHREADS: u32 = 8;
     let (tx, rx) = mpsc::channel::<i32>(0);
 
-    let t = thread::spawn(move|| {
+    let t = thread::spawn(move || {
         let result: Vec<_> = block_on(rx.collect()).unwrap();
         assert_eq!(result.len(), (AMT * NTHREADS) as usize);
         for item in result {
@@ -318,9 +318,7 @@ fn stress_receiver_multi_task_bounded_hard() {
                                 *lock = Some(rx);
                                 false
                             }
-                            Async::Ready(None) => {
-                                true
-                            }
+                            Async::Ready(None) => true,
                             Async::Pending => {
                                 *lock = Some(rx);
                                 false
@@ -340,7 +338,6 @@ fn stress_receiver_multi_task_bounded_hard() {
         th.push(t);
     }
 
-
     for i in 0..AMT {
         tx = block_on(tx.send(i)).unwrap();
     }
@@ -357,11 +354,9 @@ fn stress_receiver_multi_task_bounded_hard() {
 /// after sender dropped.
 #[test]
 fn stress_drop_sender() {
-    fn list() -> Box<Stream<Item=i32, Error=u32>> {
+    fn list() -> Box<Stream<Item = i32, Error = u32>> {
         let (tx, rx) = mpsc::channel(1);
-        let f = tx.send(Ok(1))
-          .and_then(|tx| tx.send(Ok(2)))
-          .and_then(|tx| tx.send(Ok(3)));
+        let f = tx.send(Ok(1)).and_then(|tx| tx.send(Ok(2))).and_then(|tx| tx.send(Ok(3)));
         thread::spawn(move || {
             block_on(f).unwrap();
         });
@@ -450,12 +445,8 @@ fn stress_poll_ready() {
         let mut threads = Vec::new();
         for _ in 0..NTHREADS {
             let sender = tx.clone();
-            threads.push(thread::spawn(move || {
-                block_on(SenderTask {
-                    sender: sender,
-                    count: AMT,
-                })
-            }));
+            threads
+                .push(thread::spawn(move || block_on(SenderTask { sender: sender, count: AMT })));
         }
         drop(tx);
 
@@ -482,7 +473,7 @@ fn try_send_1() {
         for i in 0..N {
             loop {
                 if tx.try_send(i).is_ok() {
-                    break
+                    break;
                 }
             }
         }
@@ -508,7 +499,8 @@ fn try_send_2() {
         block_on(poll_fn(|cx| {
             assert!(tx.poll_ready(cx).unwrap().is_pending());
             Ok::<_, ()>(Async::Ready(()))
-        })).unwrap();
+        }))
+        .unwrap();
 
         drop(readytx);
         block_on(tx.send("goodbye")).unwrap();

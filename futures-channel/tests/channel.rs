@@ -5,19 +5,17 @@ extern crate futures_executor;
 use std::sync::atomic::*;
 use std::thread;
 
+use futures::future::{poll_fn, result};
 use futures::prelude::*;
-use futures::future::{result, poll_fn};
-use futures_executor::block_on;
 use futures_channel::mpsc;
+use futures_executor::block_on;
 
 #[test]
 fn sequence() {
     let (tx, rx) = mpsc::channel(1);
 
     let amt = 20;
-    let t = thread::spawn(move || {
-        block_on(send(amt, tx)).unwrap()
-    });
+    let t = thread::spawn(move || block_on(send(amt, tx)).unwrap());
     let list: Vec<_> = block_on(rx.collect()).unwrap();
     let mut list = list.into_iter();
     for i in (1..amt + 1).rev() {
@@ -27,14 +25,11 @@ fn sequence() {
 
     t.join().unwrap();
 
-    fn send(n: u32, sender: mpsc::Sender<u32>)
-            -> Box<Future<Item=(), Error=()> + Send> {
+    fn send(n: u32, sender: mpsc::Sender<u32>) -> Box<Future<Item = (), Error = ()> + Send> {
         if n == 0 {
-            return Box::new(result(Ok(())))
+            return Box::new(result(Ok(())));
         }
-        Box::new(sender.send(n).map_err(|_| ()).and_then(move |sender| {
-            send(n - 1, sender)
-        }))
+        Box::new(sender.send(n).map_err(|_| ()).and_then(move |sender| send(n - 1, sender)))
     }
 }
 
@@ -42,9 +37,7 @@ fn sequence() {
 fn drop_sender() {
     let (tx, mut rx) = mpsc::channel::<u32>(1);
     drop(tx);
-    let f = poll_fn(|cx| {
-        rx.poll_next(cx)
-    });
+    let f = poll_fn(|cx| rx.poll_next(cx));
     assert_eq!(block_on(f).unwrap(), None)
 }
 

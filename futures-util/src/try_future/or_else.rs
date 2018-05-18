@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll, TryFuture};
 use futures_core::task;
+use futures_core::{Future, Poll, TryFuture};
 
 /// Future for the `or_else` combinator, chaining a computation onto the end of
 /// a future which fails with an error.
@@ -20,15 +20,14 @@ enum State<Fut1, Fut2, F> {
 }
 
 pub fn new<A, B, F>(future: A, f: F) -> OrElse<A, B, F> {
-    OrElse {
-        state: State::First(future, Some(f)),
-    }
+    OrElse { state: State::First(future, Some(f)) }
 }
 
 impl<A, B, F> Future for OrElse<A, B, F>
-    where A: TryFuture,
-          B: TryFuture<Item = A::Item>,
-          F: FnOnce(A::Error) -> B,
+where
+    A: TryFuture,
+    B: TryFuture<Item = A::Item>,
+    F: FnOnce(A::Error) -> B,
 {
     type Output = Result<B::Item, B::Error>;
 
@@ -42,16 +41,14 @@ impl<A, B, F> Future for OrElse<A, B, F>
                     match unsafe { PinMut::new_unchecked(fut1) }.try_poll(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(Ok(v)) => return Poll::Ready(Ok(v)),
-                        Poll::Ready(Err(e)) => {
-                            (data.take().unwrap())(e)
-                        }
+                        Poll::Ready(Err(e)) => (data.take().unwrap())(e),
                     }
                 }
                 State::Second(ref mut fut2) => {
                     // safe to create a new `PinMut` because `fut2` will never move
                     // before it's dropped; once we're in `Chain::Second` we stay
                     // there forever.
-                    return unsafe { PinMut::new_unchecked(fut2) }.try_poll(cx)
+                    return unsafe { PinMut::new_unchecked(fut2) }.try_poll(cx);
                 }
             };
 

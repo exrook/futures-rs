@@ -1,20 +1,18 @@
 use core::mem::PinMut;
 
-use futures_core::{Poll, Future, Stream};
 use futures_core::task;
+use futures_core::{Future, Poll, Stream};
 
 /// A type which converts a `Future` into a `Stream`
 /// containing a single element.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct IntoStream<F: Future> {
-    future: Option<F>
+    future: Option<F>,
 }
 
 pub fn new<F: Future>(future: F) -> IntoStream<F> {
-    IntoStream {
-        future: Some(future)
-    }
+    IntoStream { future: Some(future) }
 }
 
 impl<F: Future> Stream for IntoStream<F> {
@@ -27,7 +25,7 @@ impl<F: Future> Stream for IntoStream<F> {
                 // safety: this re-pinned future will never move before being dropped
                 match unsafe { PinMut::new_unchecked(fut) }.poll(cx) {
                     Poll::Pending => return Poll::Pending,
-                    Poll::Ready(v) => v
+                    Poll::Ready(v) => v,
                 }
             }
             None => return Poll::Ready(None),

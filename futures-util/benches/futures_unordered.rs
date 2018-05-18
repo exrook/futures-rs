@@ -5,8 +5,8 @@ extern crate futures_channel;
 extern crate futures_executor;
 extern crate test;
 
-use futures::prelude::*;
 use futures::future;
+use futures::prelude::*;
 use futures::stream::FuturesUnordered;
 use futures_channel::oneshot;
 use futures_executor::block_on;
@@ -39,7 +39,7 @@ fn oneshots(b: &mut Bencher) {
         let f = future::poll_fn(move |cx| {
             loop {
                 if let Ok(Async::Ready(None)) = rxs.poll_next(cx) {
-                    break
+                    break;
                 }
             }
             Ok::<_, ()>(Async::Ready(()))

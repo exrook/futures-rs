@@ -1,10 +1,10 @@
 //! Definition of the Empty combinator, a future that's never ready.
 
-use core::mem::PinMut;
 use core::marker;
+use core::mem::PinMut;
 
-use futures_core::{Future, Poll};
 use futures_core::task;
+use futures_core::{Future, Poll};
 
 /// A future which is never resolved.
 ///

@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll};
 use futures_core::task;
+use futures_core::{Future, Poll};
 
 /// A future which "fuses" a future once it's been resolved.
 ///
@@ -17,9 +17,7 @@ pub struct Fuse<A: Future> {
 }
 
 pub fn new<A: Future>(f: A) -> Fuse<A> {
-    Fuse {
-        future: Some(f),
-    }
+    Fuse { future: Some(f) }
 }
 
 impl<A: Future> Future for Fuse<A> {
@@ -32,7 +30,7 @@ impl<A: Future> Future for Fuse<A> {
                 // safety: this re-pinned future will never move before being dropped
                 match unsafe { PinMut::new_unchecked(fut) }.poll(cx) {
                     Poll::Pending => return Poll::Pending,
-                    Poll::Ready(v) => v
+                    Poll::Ready(v) => v,
                 }
             }
             None => return Poll::Pending,
