@@ -341,6 +341,9 @@ pub use crate::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 mod fns;
 
+#[cfg(feature = "std")]
+mod notifier;
+
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     pub mod lock;
