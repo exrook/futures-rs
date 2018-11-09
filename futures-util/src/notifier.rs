@@ -100,6 +100,12 @@ impl Notifier {
         }
     }
 
+    pub(crate) fn reset_poll(&self, _reset: Reset<'_>) {
+        let mut wakers = self.wakers.lock().unwrap();
+        self.state.store(IDLE, SeqCst);
+        wake_all(&mut wakers.as_mut().unwrap());
+    }
+
     pub(crate) fn reset_guard(&self) -> Reset<'_> {
         Reset(&self.state)
     }
@@ -109,11 +115,7 @@ impl ArcWake for Notifier {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         let wakers = &mut *arc_self.wakers.lock().unwrap();
         if let Some(wakers) = wakers.as_mut() {
-            for (_, opt_waker) in wakers {
-                if let Some(waker) = opt_waker.take() {
-                    waker.wake()
-                }
-            }
+            wake_all(wakers)
         }
     }
 }
@@ -124,6 +126,14 @@ impl Drop for Reset<'_> {
 
         if thread::panicking() {
             self.0.store(POISONED, SeqCst);
+        }
+    }
+}
+
+fn wake_all(wakers: &mut Slab<Option<Waker>>) {
+    for (_, opt_waker) in wakers {
+        if let Some(waker) = opt_waker.take() {
+            waker.wake()
         }
     }
 }
