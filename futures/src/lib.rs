@@ -235,6 +235,7 @@ pub mod future {
         // For FutureExt:
         CatchUnwind,
         Remote,
+        RemoteCompletionHandle,
         RemoteHandle,
         Shared,
     };
