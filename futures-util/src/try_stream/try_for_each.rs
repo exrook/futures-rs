@@ -29,27 +29,25 @@ where
 }
 
 impl<St, Fut, F> TryForEach<St, Fut, F>
-where St: TryStream,
-      F: FnMut(St::Ok) -> Fut,
-      Fut: TryFuture<Ok = (), Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Ok = (), Error = St::Error>,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(future: Option<Fut>);
 
     pub(super) fn new(stream: St, f: F) -> TryForEach<St, Fut, F> {
-        TryForEach {
-            stream,
-            f,
-            future: None,
-        }
+        TryForEach { stream, f, future: None }
     }
 }
 
 impl<St, Fut, F> Future for TryForEach<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Ok = (), Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Ok = (), Error = St::Error>,
 {
     type Output = Result<(), St::Error>;
 

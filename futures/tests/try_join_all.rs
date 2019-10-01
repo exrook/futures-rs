@@ -1,8 +1,8 @@
+use futures::executor::block_on;
 use futures_util::future::*;
 use futures_util::try_future::{try_join_all, TryJoinAll};
-use std::future::Future;
-use futures::executor::block_on;
 use std::fmt::Debug;
+use std::future::Future;
 
 fn assert_done<T, F>(actual_fut: F, expected: T)
 where
@@ -33,7 +33,7 @@ fn try_join_all_iter_lifetime() {
         Box::new(try_join_all(iter))
     }
 
-    assert_done(|| sizes(vec![&[1,2,3], &[], &[0]]), Ok(vec![3 as usize, 0, 1]));
+    assert_done(|| sizes(vec![&[1, 2, 3], &[], &[0]]), Ok(vec![3 as usize, 0, 1]));
 }
 
 #[test]

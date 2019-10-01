@@ -20,10 +20,7 @@ impl<St: Stream> Enumerate<St> {
     unsafe_unpinned!(count: usize);
 
     pub(super) fn new(stream: St) -> Enumerate<St> {
-        Enumerate {
-            stream,
-            count: 0,
-        }
+        Enumerate { stream, count: 0 }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -68,10 +65,7 @@ impl<St: Stream + FusedStream> FusedStream for Enumerate<St> {
 impl<St: Stream> Stream for Enumerate<St> {
     type Item = (usize, St::Item);
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match ready!(self.as_mut().stream().poll_next(cx)) {
             Some(item) => {
                 let count = self.count;

@@ -13,8 +13,8 @@ use std::fmt;
 use std::mem;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 fn sassert_next<S>(s: &mut S, item: S::Item)
 where
@@ -38,11 +38,8 @@ fn unwrap<T, E: fmt::Debug>(x: Poll<Result<T, E>>) -> T {
 
 #[test]
 fn either_sink() {
-    let mut s = if true {
-        Vec::<i32>::new().left_sink()
-    } else {
-        VecDeque::<i32>::new().right_sink()
-    };
+    let mut s =
+        if true { Vec::<i32>::new().left_sink() } else { VecDeque::<i32>::new().right_sink() };
 
     Pin::new(&mut s).start_send(0).unwrap();
 }
@@ -288,10 +285,7 @@ impl<T: Unpin> Sink<Option<T>> for ManualFlush<T> {
 
 impl<T: Unpin> ManualFlush<T> {
     fn new() -> Self {
-        Self {
-            data: Vec::new(),
-            waiting_tasks: Vec::new(),
-        }
+        Self { data: Vec::new(), waiting_tasks: Vec::new() }
     }
 
     fn force_flush(&mut self) -> Vec<T> {
@@ -350,10 +344,7 @@ struct Allow {
 
 impl Allow {
     fn new() -> Self {
-        Self {
-            flag: Cell::new(false),
-            tasks: RefCell::new(Vec::new()),
-        }
+        Self { flag: Cell::new(false), tasks: RefCell::new(Vec::new()) }
     }
 
     fn check(&self, cx: &mut Context<'_>) -> bool {
@@ -401,10 +392,7 @@ impl<T: Unpin> Sink<T> for ManualAllow<T> {
 
 fn manual_allow<T: Unpin>() -> (ManualAllow<T>, Rc<Allow>) {
     let allow = Rc::new(Allow::new());
-    let manual_allow = ManualAllow {
-        data: Vec::new(),
-        allow: allow.clone(),
-    };
+    let manual_allow = ManualAllow { data: Vec::new(), allow: allow.clone() };
     (manual_allow, allow)
 }
 
@@ -483,10 +471,7 @@ fn sink_map_err() {
     }
 
     let tx = mpsc::channel(0).0;
-    assert_eq!(
-        Pin::new(&mut tx.sink_map_err(|_| ())).start_send(()),
-        Err(())
-    );
+    assert_eq!(Pin::new(&mut tx.sink_map_err(|_| ())).start_send(()), Err(()));
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -509,8 +494,5 @@ fn err_into() {
     }
 
     let tx = mpsc::channel(0).0;
-    assert_eq!(
-        Pin::new(&mut tx.sink_err_into()).start_send(()),
-        Err(ErrIntoTest)
-    );
+    assert_eq!(Pin::new(&mut tx.sink_err_into()).start_send(()), Err(ErrIntoTest));
 }

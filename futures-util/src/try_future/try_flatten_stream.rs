@@ -25,9 +25,7 @@ where
     unsafe_pinned!(inner: FlattenStreamSink<Fut>);
 
     pub(super) fn new(future: Fut) -> Self {
-        Self {
-            inner: FlattenStreamSink::new(future),
-        }
+        Self { inner: FlattenStreamSink::new(future) }
     }
 }
 
@@ -37,9 +35,7 @@ where
     Fut::Ok: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TryFlattenStream")
-            .field("inner", &self.inner)
-            .finish()
+        f.debug_struct("TryFlattenStream").field("inner", &self.inner).finish()
     }
 }
 

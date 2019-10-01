@@ -62,17 +62,11 @@ impl<W: AsyncWrite> AsyncWrite for Limited<W> {
         self.io().poll_write(cx, &buf[..cmp::min(limit, buf.len())])
     }
 
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         self.io().poll_flush(cx)
     }
 
-    fn poll_close(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         self.io().poll_close(cx)
     }
 }
@@ -89,10 +83,7 @@ impl<R: AsyncRead> AsyncRead for Limited<R> {
 }
 
 impl<R: AsyncBufRead> AsyncBufRead for Limited<R> {
-    fn poll_fill_buf(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<&[u8]>> {
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
         self.io().poll_fill_buf(cx)
     }
 

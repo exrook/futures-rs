@@ -1,7 +1,7 @@
-use futures_util::future::*;
-use std::future::Future;
 use futures::executor::block_on;
+use futures_util::future::*;
 use std::fmt::Debug;
+use std::future::Future;
 
 fn assert_done<T, F>(actual_fut: F, expected: T)
 where
@@ -31,7 +31,7 @@ fn join_all_iter_lifetime() {
         Box::new(join_all(iter))
     }
 
-    assert_done(|| sizes(vec![&[1,2,3], &[], &[0]]), vec![3 as usize, 0, 1]);
+    assert_done(|| sizes(vec![&[1, 2, 3], &[], &[0]]), vec![3 as usize, 0, 1]);
 }
 
 #[test]

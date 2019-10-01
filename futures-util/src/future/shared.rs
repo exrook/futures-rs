@@ -1,4 +1,4 @@
-use crate::task::{ArcWake, waker_ref};
+use crate::task::{waker_ref, ArcWake};
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
@@ -54,13 +54,15 @@ unsafe impl<Fut> Send for Inner<Fut>
 where
     Fut: Future + Send,
     Fut::Output: Send + Sync,
-{}
+{
+}
 
 unsafe impl<Fut> Sync for Inner<Fut>
 where
     Fut: Future + Send,
     Fut::Output: Send + Sync,
-{}
+{
+}
 
 const IDLE: usize = 0;
 const POLLING: usize = 1;
@@ -80,10 +82,7 @@ impl<Fut: Future> Shared<Fut> {
             }),
         };
 
-        Shared {
-            inner: Some(Arc::new(inner)),
-            waker_key: NULL_WAKER_KEY,
-        }
+        Shared { inner: Some(Arc::new(inner)), waker_key: NULL_WAKER_KEY }
     }
 }
 
@@ -267,8 +266,7 @@ where
         };
 
         unsafe {
-            *inner.future_or_output.get() =
-                FutureOrOutput::Output(output);
+            *inner.future_or_output.get() = FutureOrOutput::Output(output);
         }
 
         inner.notifier.state.store(COMPLETE, SeqCst);
@@ -295,10 +293,7 @@ where
     Fut: Future,
 {
     fn clone(&self) -> Self {
-        Shared {
-            inner: self.inner.clone(),
-            waker_key: NULL_WAKER_KEY,
-        }
+        Shared { inner: self.inner.clone(), waker_key: NULL_WAKER_KEY }
     }
 }
 

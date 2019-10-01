@@ -5,9 +5,7 @@
 // It cannot be included in the published code because this lints have false positives in the minimum required version.
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
-
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
 #![doc(html_root_url = "https://docs.rs/futures-join-macro-preview/0.3.0-alpha.19")]
 
 extern crate proc_macro;
@@ -83,9 +81,7 @@ fn bind_futures(
 pub fn join(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Join);
 
-    let futures_crate = parsed
-        .futures_crate_path
-        .unwrap_or_else(|| parse_quote!(::futures_util));
+    let futures_crate = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
 
     // should be def_site, but that's unstable
     let span = Span::call_site();
@@ -126,9 +122,7 @@ pub fn join(input: TokenStream) -> TokenStream {
 pub fn try_join(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Join);
 
-    let futures_crate = parsed
-        .futures_crate_path
-        .unwrap_or_else(|| parse_quote!(::futures_util));
+    let futures_crate = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
 
     // should be def_site, but that's unstable
     let span = Span::call_site();

@@ -1,14 +1,14 @@
 //! Definition of the `JoinAll` combinator, waiting for all of a list of futures
 //! to finish.
 
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::fmt;
 use core::future::Future;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use alloc::boxed::Box;
-use alloc::vec::Vec;
 
 #[derive(Debug)]
 enum ElemState<F>
@@ -41,19 +41,13 @@ where
     }
 }
 
-impl<F> Unpin for ElemState<F>
-where
-    F: Future + Unpin,
-{
-}
+impl<F> Unpin for ElemState<F> where F: Future + Unpin {}
 
 fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
     // Safety: `std` _could_ make this unsound if it were to decide Pin's
     // invariants aren't required to transmit through slices. Otherwise this has
     // the same safety as a normal field pin projection.
-    unsafe { slice.get_unchecked_mut() }
-        .iter_mut()
-        .map(|t| unsafe { Pin::new_unchecked(t) })
+    unsafe { slice.get_unchecked_mut() }.iter_mut().map(|t| unsafe { Pin::new_unchecked(t) })
 }
 
 /// Future for the [`join_all`] function.
@@ -71,9 +65,7 @@ where
     F::Output: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("JoinAll")
-            .field("elems", &self.elems)
-            .finish()
+        f.debug_struct("JoinAll").field("elems", &self.elems).finish()
     }
 }
 
@@ -142,9 +134,7 @@ where
 
         if all_done {
             let mut elems = mem::replace(&mut self.elems, Box::pin([]));
-            let result = iter_pin_mut(elems.as_mut())
-                .map(|e| e.take_done().unwrap())
-                .collect();
+            let result = iter_pin_mut(elems.as_mut()).map(|e| e.take_done().unwrap()).collect();
             Poll::Ready(result)
         } else {
             Poll::Pending

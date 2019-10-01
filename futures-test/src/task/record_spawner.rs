@@ -22,9 +22,7 @@ pub struct RecordSpawner {
 impl RecordSpawner {
     /// Create a new instance
     pub fn new() -> Self {
-        Self {
-            spawned: Vec::new(),
-        }
+        Self { spawned: Vec::new() }
     }
 
     /// Inspect any futures that were spawned onto this [`Spawn`].
@@ -34,10 +32,7 @@ impl RecordSpawner {
 }
 
 impl Spawn for RecordSpawner {
-    fn spawn_obj(
-        &mut self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_obj(&mut self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.spawned.push(future);
         Ok(())
     }

@@ -151,7 +151,7 @@ macro_rules! document_select_macro {
         /// more complex behavior such as timer resets or writing into the head of
         /// a stream.
         $item
-    }
+    };
 }
 
 document_select_macro! {

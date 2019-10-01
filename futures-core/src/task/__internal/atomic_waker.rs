@@ -1,8 +1,8 @@
-use core::fmt;
-use core::cell::UnsafeCell;
-use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
 use crate::task::Waker;
+use core::cell::UnsafeCell;
+use core::fmt;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::{AcqRel, Acquire, Release};
 
 /// A synchronization primitive for task wakeup.
 ///
@@ -202,10 +202,7 @@ impl AtomicWaker {
         trait AssertSync: Sync {}
         impl AssertSync for Waker {}
 
-        AtomicWaker {
-            state: AtomicUsize::new(WAITING),
-            waker: UnsafeCell::new(None),
-        }
+        AtomicWaker { state: AtomicUsize::new(WAITING), waker: UnsafeCell::new(None) }
     }
 
     /// Registers the waker to be notified on calls to `wake`.
@@ -271,8 +268,7 @@ impl AtomicWaker {
                     //
                     // Start by assuming that the state is `REGISTERING` as this
                     // is what we jut set it to.
-                    let res = self.state.compare_exchange(
-                        REGISTERING, WAITING, AcqRel, Acquire);
+                    let res = self.state.compare_exchange(REGISTERING, WAITING, AcqRel, Acquire);
 
                     match res {
                         Ok(_) => {
@@ -333,9 +329,7 @@ impl AtomicWaker {
                 //
                 // We just want to maintain memory safety. It is ok to drop the
                 // call to `register`.
-                debug_assert!(
-                    state == REGISTERING ||
-                    state == REGISTERING | WAKING);
+                debug_assert!(state == REGISTERING || state == REGISTERING | WAKING);
             }
         }
     }
@@ -380,9 +374,8 @@ impl AtomicWaker {
                 // not.
                 //
                 debug_assert!(
-                    state == REGISTERING ||
-                    state == REGISTERING | WAKING ||
-                    state == WAKING);
+                    state == REGISTERING || state == REGISTERING | WAKING || state == WAKING
+                );
                 None
             }
         }

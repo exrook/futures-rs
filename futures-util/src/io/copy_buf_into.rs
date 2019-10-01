@@ -17,11 +17,7 @@ impl<R: Unpin, W: ?Sized> Unpin for CopyBufInto<'_, R, W> {}
 
 impl<R, W: ?Sized> CopyBufInto<'_, R, W> {
     pub(super) fn new(reader: R, writer: &mut W) -> CopyBufInto<'_, R, W> {
-        CopyBufInto {
-            reader,
-            writer,
-            amt: 0,
-        }
+        CopyBufInto { reader, writer, amt: 0 }
     }
 }
 
@@ -35,8 +31,9 @@ impl<R, W: Unpin + ?Sized> CopyBufInto<'_, R, W> {
 }
 
 impl<R, W> Future for CopyBufInto<'_, R, W>
-    where R: AsyncBufRead,
-          W: AsyncWrite + Unpin + ?Sized,
+where
+    R: AsyncBufRead,
+    W: AsyncWrite + Unpin + ?Sized,
 {
     type Output = io::Result<u64>;
 
@@ -51,7 +48,7 @@ impl<R, W> Future for CopyBufInto<'_, R, W>
 
             let i = ready!(writer.as_mut().poll_write(cx, buffer))?;
             if i == 0 {
-                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
+                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
             }
             *amt += i as u64;
             reader.as_mut().consume(i);

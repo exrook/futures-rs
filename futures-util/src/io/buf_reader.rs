@@ -1,3 +1,4 @@
+use super::DEFAULT_BUF_SIZE;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "read_initializer")]
 use futures_io::Initializer;
@@ -6,7 +7,6 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::io::{self, Read};
 use std::pin::Pin;
 use std::{cmp, fmt};
-use super::DEFAULT_BUF_SIZE;
 
 /// The `BufReader` struct adds buffering to any reader.
 ///
@@ -51,12 +51,7 @@ impl<R: AsyncRead> BufReader<R> {
             let mut buffer = Vec::with_capacity(capacity);
             buffer.set_len(capacity);
             super::initialize(&inner, &mut buffer);
-            Self {
-                inner,
-                buf: buffer.into_boxed_slice(),
-                pos: 0,
-                cap: 0,
-            }
+            Self { inner, buf: buffer.into_boxed_slice(), pos: 0, cap: 0 }
         }
     }
 
@@ -175,10 +170,7 @@ impl<R: AsyncRead> AsyncRead for BufReader<R> {
 }
 
 impl<R: AsyncRead> AsyncBufRead for BufReader<R> {
-    fn poll_fill_buf(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<&[u8]>> {
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
         let Self { inner, buf, cap, pos } = unsafe { self.get_unchecked_mut() };
         let mut inner = unsafe { Pin::new_unchecked(inner) };
 

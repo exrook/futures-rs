@@ -1,13 +1,11 @@
 //! The futures-rs `select! macro implementation.
 
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 #![warn(rust_2018_idioms, unreachable_pub)]
 // It cannot be included in the published code because this lints have false positives in the minimum required version.
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
-
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
 #![doc(html_root_url = "https://docs.rs/futures-select-macro-preview/0.3.0-alpha.19")]
 
 extern crate proc_macro;
@@ -16,8 +14,8 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_hack::proc_macro_hack;
 use quote::{format_ident, quote};
-use syn::{parenthesized, parse_quote, Expr, Ident, Pat, Token};
 use syn::parse::{Parse, ParseStream};
+use syn::{parenthesized, parse_quote, Expr, Ident, Pat, Token};
 
 mod kw {
     syn::custom_keyword!(complete);
@@ -89,7 +87,10 @@ impl Parse for Select {
 
             // Commas after the expression are only optional if it's a `Block`
             // or it is the last branch in the `match`.
-            let is_block = match expr { Expr::Block(_) => true, _ => false };
+            let is_block = match expr {
+                Expr::Block(_) => true,
+                _ => false,
+            };
             if is_block || input.is_empty() {
                 input.parse::<Option<Token![,]>>()?;
             } else {
@@ -102,7 +103,7 @@ impl Parse for Select {
                 CaseKind::Normal(pat, fut_expr) => {
                     select.normal_fut_exprs.push(fut_expr);
                     select.normal_fut_handlers.push((pat, expr));
-                },
+                }
             }
         }
 
@@ -118,22 +119,16 @@ fn declare_result_enum(
     result_ident: Ident,
     variants: usize,
     complete: bool,
-    span: Span
+    span: Span,
 ) -> (Vec<Ident>, syn::ItemEnum) {
     // "_0", "_1", "_2"
     let variant_names: Vec<Ident> =
-        (0..variants)
-            .map(|num| format_ident!("_{}", num, span = span))
-            .collect();
+        (0..variants).map(|num| format_ident!("_{}", num, span = span)).collect();
 
     let type_parameters = &variant_names;
     let variants = &variant_names;
 
-    let complete_variant = if complete {
-        Some(quote!(Complete))
-    } else {
-        None
-    };
+    let complete_variant = if complete { Some(quote!(Complete)) } else { None };
 
     let enum_item = parse_quote! {
         enum #result_ident<#(#type_parameters,)*> {
@@ -152,7 +147,8 @@ fn declare_result_enum(
 pub fn select(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Select);
 
-    let futures_crate: syn::Path = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
+    let futures_crate: syn::Path =
+        parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
 
     // should be def_site, but that's unstable
     let span = Span::call_site();
@@ -168,7 +164,9 @@ pub fn select(input: TokenStream) -> TokenStream {
 
     // bind non-`Ident` future exprs w/ `let`
     let mut future_let_bindings = Vec::with_capacity(parsed.normal_fut_exprs.len());
-    let bound_future_names: Vec<_> = parsed.normal_fut_exprs.into_iter()
+    let bound_future_names: Vec<_> = parsed
+        .normal_fut_exprs
+        .into_iter()
         .zip(variant_names.iter())
         .map(|(expr, variant_name)| {
             match expr {
@@ -184,7 +182,7 @@ pub fn select(input: TokenStream) -> TokenStream {
                         #futures_crate::async_await::assert_unpin(&mut #path);
                     });
                     path
-                },
+                }
                 _ => {
                     // Bind and pin the resulting Future on the stack. This is
                     // necessary to support direct select! calls on !Unpin
@@ -208,8 +206,8 @@ pub fn select(input: TokenStream) -> TokenStream {
 
     // For each future, make an `&mut dyn FnMut(&mut Context<'_>) -> Option<Poll<__PrivResult<...>>`
     // to use for polling that individual future. These will then be put in an array.
-    let poll_functions = bound_future_names.iter().zip(variant_names.iter())
-        .map(|(bound_future_name, variant_name)| {
+    let poll_functions = bound_future_names.iter().zip(variant_names.iter()).map(
+        |(bound_future_name, variant_name)| {
             // Below we lazily create the Pin on the Future below.
             // This is done in order to avoid allocating memory in the generator
             // for the Pin variable.
@@ -236,7 +234,8 @@ pub fn select(input: TokenStream) -> TokenStream {
                     &mut #futures_crate::task::Context<'_>
                 ) -> Option<#futures_crate::task::Poll<_>> = &mut #variant_name;
             }
-        });
+        },
+    );
 
     let none_polled = if parsed.complete.is_some() {
         quote! {
@@ -249,13 +248,13 @@ pub fn select(input: TokenStream) -> TokenStream {
         }
     };
 
-    let branches = parsed.normal_fut_handlers.into_iter()
-        .zip(variant_names.iter())
-        .map(|((pat, expr), variant_name)| {
+    let branches = parsed.normal_fut_handlers.into_iter().zip(variant_names.iter()).map(
+        |((pat, expr), variant_name)| {
             quote! {
                 #enum_ident::#variant_name(#pat) => { #expr },
             }
-        });
+        },
+    );
     let branches = quote! { #( #branches )* };
 
     let complete_branch = parsed.complete.map(|complete_expr| {

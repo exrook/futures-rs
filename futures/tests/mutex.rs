@@ -4,7 +4,7 @@ use futures::lock::Mutex;
 use futures::stream::StreamExt;
 use futures::task::{Context, SpawnExt};
 use futures_test::future::FutureTestExt;
-use futures_test::task::{panic_context, new_count_waker};
+use futures_test::task::{new_count_waker, panic_context};
 use std::sync::Arc;
 
 #[test]
@@ -36,10 +36,7 @@ fn mutex_wakes_waiters() {
 #[test]
 fn mutex_contested() {
     let (tx, mut rx) = mpsc::unbounded();
-    let mut pool = futures::executor::ThreadPool::builder()
-        .pool_size(16)
-        .create()
-        .unwrap();
+    let mut pool = futures::executor::ThreadPool::builder().pool_size(16).create().unwrap();
 
     let tx = Arc::new(tx);
     let mutex = Arc::new(Mutex::new(0));
@@ -54,7 +51,8 @@ fn mutex_contested() {
             *lock += 1;
             tx.unbounded_send(()).unwrap();
             drop(lock);
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     pool.run(async {

@@ -20,10 +20,7 @@ impl<St: Stream> Skip<St> {
     unsafe_unpinned!(remaining: u64);
 
     pub(super) fn new(stream: St, n: u64) -> Skip<St> {
-        Skip {
-            stream,
-            remaining: n,
-        }
+        Skip { stream, remaining: n }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -68,10 +65,7 @@ impl<St: FusedStream> FusedStream for Skip<St> {
 impl<St: Stream> Stream for Skip<St> {
     type Item = St::Item;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<St::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
         while self.remaining > 0 {
             match ready!(self.as_mut().stream().poll_next(cx)) {
                 Some(_) => *self.as_mut().remaining() -= 1,

@@ -23,10 +23,7 @@ where
     unsafe_unpinned!(accum: Option<St::Ok>);
 
     pub(super) fn new(stream: St) -> TryConcat<St> {
-        TryConcat {
-            stream,
-            accum: None,
-        }
+        TryConcat { stream, accum: None }
     }
 }
 
@@ -47,10 +44,8 @@ where
                     } else {
                         *accum = Some(x)
                     }
-                },
-                None => {
-                    return Poll::Ready(Ok(self.as_mut().accum().take().unwrap_or_default()))
                 }
+                None => return Poll::Ready(Ok(self.as_mut().accum().take().unwrap_or_default())),
             }
         }
     }

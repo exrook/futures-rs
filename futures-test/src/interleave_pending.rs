@@ -1,5 +1,5 @@
-use futures_core::future::{Future, FusedFuture};
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::future::{FusedFuture, Future};
+use futures_core::stream::{FusedStream, Stream};
 use futures_io::{self as io, AsyncBufRead, AsyncRead, AsyncWrite};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::{
@@ -27,10 +27,7 @@ impl<T> InterleavePending<T> {
     unsafe_unpinned!(pended: bool);
 
     pub(crate) fn new(inner: T) -> Self {
-        Self {
-            inner,
-            pended: false,
-        }
+        Self { inner, pended: false }
     }
 
     /// Acquires a reference to the underlying I/O object that this adaptor is
@@ -67,10 +64,7 @@ impl<T> InterleavePending<T> {
 impl<Fut: Future> Future for InterleavePending<Fut> {
     type Output = Fut::Output;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if *self.as_mut().pended() {
             let next = self.as_mut().inner().poll(cx);
             if next.is_ready() {
@@ -94,10 +88,7 @@ impl<Fut: FusedFuture> FusedFuture for InterleavePending<Fut> {
 impl<St: Stream> Stream for InterleavePending<St> {
     type Item = St::Item;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if *self.as_mut().pended() {
             let next = self.as_mut().inner().poll_next(cx);
             if next.is_ready() {
@@ -142,10 +133,7 @@ impl<W: AsyncWrite> AsyncWrite for InterleavePending<W> {
         }
     }
 
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let (writer, pended) = self.project();
         if *pended {
             let next = writer.poll_flush(cx);
@@ -160,10 +148,7 @@ impl<W: AsyncWrite> AsyncWrite for InterleavePending<W> {
         }
     }
 
-    fn poll_close(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let (writer, pended) = self.project();
         if *pended {
             let next = writer.poll_close(cx);
@@ -201,10 +186,7 @@ impl<R: AsyncRead> AsyncRead for InterleavePending<R> {
 }
 
 impl<R: AsyncBufRead> AsyncBufRead for InterleavePending<R> {
-    fn poll_fill_buf(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<&[u8]>> {
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
         let (reader, pended) = self.project();
         if *pended {
             let next = reader.poll_fill_buf(cx);

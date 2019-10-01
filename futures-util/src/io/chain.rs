@@ -32,11 +32,7 @@ where
     unsafe_unpinned!(done_first: bool);
 
     pub(super) fn new(first: T, second: U) -> Self {
-        Self {
-            first,
-            second,
-            done_first: false,
-        }
+        Self { first, second, done_first: false }
     }
 
     /// Gets references to the underlying readers in this `Chain`.
@@ -77,10 +73,7 @@ where
     U: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Chain")
-            .field("t", &self.first)
-            .field("u", &self.second)
-            .finish()
+        f.debug_struct("Chain").field("t", &self.first).field("u", &self.second).finish()
     }
 }
 
@@ -136,11 +129,7 @@ where
     U: AsyncBufRead,
 {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
-        let Self {
-            first,
-            second,
-            done_first,
-        } = unsafe { self.get_unchecked_mut() };
+        let Self { first, second, done_first } = unsafe { self.get_unchecked_mut() };
         let first = unsafe { Pin::new_unchecked(first) };
         let second = unsafe { Pin::new_unchecked(second) };
 

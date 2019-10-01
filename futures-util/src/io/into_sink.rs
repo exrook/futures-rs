@@ -1,10 +1,10 @@
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use futures_sink::Sink;
-use std::io;
-use std::pin::Pin;
-use std::marker::Unpin;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
+use std::io;
+use std::marker::Unpin;
+use std::pin::Pin;
 
 #[derive(Debug)]
 struct Block<Item> {
@@ -44,8 +44,7 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
     fn poll_flush_buffer(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), io::Error>>
-    {
+    ) -> Poll<Result<(), io::Error>> {
         let (mut writer, buffer) = self.project();
         if let Some(buffer) = buffer {
             loop {
@@ -60,46 +59,29 @@ impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
         *buffer = None;
         Poll::Ready(Ok(()))
     }
-
 }
 
 impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
     type Error = io::Error;
 
-    fn poll_ready(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>>
-    {
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         Poll::Ready(Ok(()))
     }
 
-    fn start_send(
-        mut self: Pin<&mut Self>,
-        item: Item,
-    ) -> Result<(), Self::Error>
-    {
+    fn start_send(mut self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
         debug_assert!(self.as_mut().buffer().is_none());
         *self.as_mut().buffer() = Some(Block { offset: 0, bytes: item });
         Ok(())
     }
 
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>>
-    {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         ready!(self.as_mut().writer().poll_flush(cx))?;
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>>
-    {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         ready!(self.as_mut().writer().poll_close(cx))?;
         Poll::Ready(Ok(()))

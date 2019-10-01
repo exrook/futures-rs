@@ -1,8 +1,8 @@
 //! Utilities for creating zero-cost wakers that don't do anything.
-use futures_core::task::{RawWaker, RawWakerVTable, Waker};
-use core::ptr::null;
 #[cfg(feature = "std")]
 use core::cell::UnsafeCell;
+use core::ptr::null;
+use futures_core::task::{RawWaker, RawWakerVTable, Waker};
 
 unsafe fn noop_clone(_data: *const ()) -> RawWaker {
     noop_raw_waker()
@@ -28,9 +28,7 @@ fn noop_raw_waker() -> RawWaker {
 /// ```
 #[inline]
 pub fn noop_waker() -> Waker {
-    unsafe {
-        Waker::from_raw(noop_raw_waker())
-    }
+    unsafe { Waker::from_raw(noop_raw_waker()) }
 }
 
 /// Get a static reference to a [`Waker`] which
