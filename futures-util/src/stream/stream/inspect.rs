@@ -20,15 +20,14 @@ where
     St: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Inspect")
-            .field("stream", &self.stream)
-            .finish()
+        f.debug_struct("Inspect").field("stream", &self.stream).finish()
     }
 }
 
 impl<St, F> Inspect<St, F>
-    where St: Stream,
-          F: FnMut(&St::Item),
+where
+    St: Stream,
+    F: FnMut(&St::Item),
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
@@ -71,8 +70,9 @@ impl<St, F> Inspect<St, F>
 }
 
 impl<St, F> FusedStream for Inspect<St, F>
-    where St: FusedStream,
-          F: FnMut(&St::Item),
+where
+    St: FusedStream,
+    F: FnMut(&St::Item),
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
@@ -87,19 +87,14 @@ pub(crate) fn inspect<T, F: FnMut(&T)>(x: T, mut f: F) -> T {
 }
 
 impl<St, F> Stream for Inspect<St, F>
-    where St: Stream,
-          F: FnMut(&St::Item),
+where
+    St: Stream,
+    F: FnMut(&St::Item),
 {
     type Item = St::Item;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<St::Item>> {
-        self.as_mut()
-            .stream()
-            .poll_next(cx)
-            .map(|opt| opt.map(|e| inspect(e, self.as_mut().f())))
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
+        self.as_mut().stream().poll_next(cx).map(|opt| opt.map(|e| inspect(e, self.as_mut().f())))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -110,8 +105,9 @@ impl<St, F> Stream for Inspect<St, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, F, Item> Sink<Item> for Inspect<S, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(&S::Item),
+where
+    S: Stream + Sink<Item>,
+    F: FnMut(&S::Item),
 {
     type Error = S::Error;
 

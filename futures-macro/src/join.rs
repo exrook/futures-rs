@@ -69,9 +69,7 @@ fn bind_futures(
 pub(crate) fn join(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Join);
 
-    let futures_crate = parsed
-        .futures_crate_path
-        .unwrap_or_else(|| parse_quote!(::futures_util));
+    let futures_crate = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
 
     // should be def_site, but that's unstable
     let span = Span::call_site();
@@ -111,9 +109,7 @@ pub(crate) fn join(input: TokenStream) -> TokenStream {
 pub(crate) fn try_join(input: TokenStream) -> TokenStream {
     let parsed = syn::parse_macro_input!(input as Join);
 
-    let futures_crate = parsed
-        .futures_crate_path
-        .unwrap_or_else(|| parse_quote!(::futures_util));
+    let futures_crate = parsed.futures_crate_path.unwrap_or_else(|| parse_quote!(::futures_util));
 
     // should be def_site, but that's unstable
     let span = Span::call_site();

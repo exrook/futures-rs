@@ -1,6 +1,6 @@
 use {
     crate::future::{CatchUnwind, FutureExt},
-    futures_channel::oneshot::{self, Sender, Receiver},
+    futures_channel::oneshot::{self, Receiver, Sender},
     futures_core::{
         future::Future,
         task::{Context, Poll},
@@ -12,8 +12,8 @@ use {
         panic::{self, AssertUnwindSafe},
         pin::Pin,
         sync::{
-            Arc,
             atomic::{AtomicBool, Ordering},
+            Arc,
         },
         thread,
     },
@@ -63,9 +63,7 @@ pub struct Remote<Fut: Future> {
 
 impl<Fut: Future + fmt::Debug> fmt::Debug for Remote<Fut> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Remote")
-            .field(&self.future)
-            .finish()
+        f.debug_tuple("Remote").field(&self.future).finish()
     }
 }
 
@@ -83,7 +81,7 @@ impl<Fut: Future> Future for Remote<Fut> {
         if let Poll::Ready(_) = self.as_mut().tx().as_mut().unwrap().poll_canceled(cx) {
             if !self.keep_running.load(Ordering::SeqCst) {
                 // Cancelled, bail out
-                return Poll::Ready(())
+                return Poll::Ready(());
             }
         }
 

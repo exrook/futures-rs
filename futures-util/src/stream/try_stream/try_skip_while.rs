@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream, FusedStream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -10,7 +10,10 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// Stream for the [`try_skip_while`](super::TryStreamExt::try_skip_while)
 /// method.
 #[must_use = "streams do nothing unless polled"]
-pub struct TrySkipWhile<St, Fut, F> where St: TryStream {
+pub struct TrySkipWhile<St, Fut, F>
+where
+    St: TryStream,
+{
     stream: St,
     f: F,
     pending_fut: Option<Fut>,
@@ -37,15 +40,17 @@ where
 }
 
 impl<St, Fut, F> TrySkipWhile<St, Fut, F>
-    where St: TryStream,
+where
+    St: TryStream,
 {
     unsafe_pinned!(stream: St);
 }
 
 impl<St, Fut, F> TrySkipWhile<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(&St::Ok) -> Fut,
-          Fut: TryFuture<Ok = bool, Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(&St::Ok) -> Fut,
+    Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending_fut: Option<Fut>);
@@ -53,13 +58,7 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     unsafe_unpinned!(done_skipping: bool);
 
     pub(super) fn new(stream: St, f: F) -> TrySkipWhile<St, Fut, F> {
-        TrySkipWhile {
-            stream,
-            f,
-            pending_fut: None,
-            pending_item: None,
-            done_skipping: false,
-        }
+        TrySkipWhile { stream, f, pending_fut: None, pending_item: None, done_skipping: false }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -96,16 +95,14 @@ impl<St, Fut, F> TrySkipWhile<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(&St::Ok) -> Fut,
-          Fut: TryFuture<Ok = bool, Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(&St::Ok) -> Fut,
+    Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     type Item = Result<St::Ok, St::Error>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.done_skipping {
             return self.as_mut().stream().try_poll_next(cx);
         }
@@ -127,7 +124,7 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
 
             if !skipped {
                 *self.as_mut().done_skipping() = true;
-                return Poll::Ready(Some(Ok(item)))
+                return Poll::Ready(Some(Ok(item)));
             }
         }
     }
@@ -144,9 +141,10 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
 }
 
 impl<St, Fut, F> FusedStream for TrySkipWhile<St, Fut, F>
-    where St: TryStream + FusedStream,
-          F: FnMut(&St::Ok) -> Fut,
-          Fut: TryFuture<Ok = bool, Error = St::Error>,
+where
+    St: TryStream + FusedStream,
+    F: FnMut(&St::Ok) -> Fut,
+    Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     fn is_terminated(&self) -> bool {
         self.pending_item.is_none() && self.stream.is_terminated()
@@ -156,7 +154,8 @@ impl<St, Fut, F> FusedStream for TrySkipWhile<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item, E> Sink<Item> for TrySkipWhile<S, Fut, F>
-    where S: TryStream + Sink<Item, Error = E>,
+where
+    S: TryStream + Sink<Item, Error = E>,
 {
     type Error = E;
 

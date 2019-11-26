@@ -32,9 +32,10 @@ where
 }
 
 impl<St, Fut, T, F> TryFold<St, Fut, T, F>
-where St: TryStream,
-      F: FnMut(T, St::Ok) -> Fut,
-      Fut: TryFuture<Ok = T, Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(T, St::Ok) -> Fut,
+    Fut: TryFuture<Ok = T, Error = St::Error>,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
@@ -42,19 +43,15 @@ where St: TryStream,
     unsafe_pinned!(future: Option<Fut>);
 
     pub(super) fn new(stream: St, f: F, t: T) -> TryFold<St, Fut, T, F> {
-        TryFold {
-            stream,
-            f,
-            accum: Some(t),
-            future: None,
-        }
+        TryFold { stream, f, accum: Some(t), future: None }
     }
 }
 
 impl<St, Fut, T, F> FusedFuture for TryFold<St, Fut, T, F>
-    where St: TryStream,
-          F: FnMut(T, St::Ok) -> Fut,
-          Fut: TryFuture<Ok = T, Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(T, St::Ok) -> Fut,
+    Fut: TryFuture<Ok = T, Error = St::Error>,
 {
     fn is_terminated(&self) -> bool {
         self.accum.is_none() && self.future.is_none()
@@ -62,9 +59,10 @@ impl<St, Fut, T, F> FusedFuture for TryFold<St, Fut, T, F>
 }
 
 impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
-    where St: TryStream,
-          F: FnMut(T, St::Ok) -> Fut,
-          Fut: TryFuture<Ok = T, Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(T, St::Ok) -> Fut,
+    Fut: TryFuture<Ok = T, Error = St::Error>,
 {
     type Output = Result<T, St::Error>;
 
@@ -72,11 +70,13 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
         loop {
             // we're currently processing a future to produce a new accum value
             if self.accum.is_none() {
-                let accum = match ready!(
-                    self.as_mut().future().as_pin_mut()
-                       .expect("TryFold polled after completion")
-                       .try_poll(cx)
-                ) {
+                let accum = match ready!(self
+                    .as_mut()
+                    .future()
+                    .as_pin_mut()
+                    .expect("TryFold polled after completion")
+                    .try_poll(cx))
+                {
                     Ok(accum) => accum,
                     Err(e) => {
                         // Indicate that the future can no longer be polled.
@@ -103,7 +103,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
                 let future = (self.as_mut().f())(accum, e);
                 self.as_mut().future().set(Some(future));
             } else {
-                return Poll::Ready(Ok(accum))
+                return Poll::Ready(Ok(accum));
             }
         }
     }

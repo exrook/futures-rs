@@ -1,6 +1,8 @@
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt};
-use futures::io::{AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufWriter, Cursor, SeekFrom};
+use futures::io::{
+    AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BufWriter, Cursor, SeekFrom,
+};
 use futures::task::{Context, Poll};
 use futures_test::task::noop_context;
 use std::io;
@@ -169,7 +171,6 @@ fn maybe_pending_buf_writer_inner_flushes() {
     assert_eq!(w, [0, 1]);
 }
 
-
 struct MaybePendingSeek {
     inner: Cursor<Vec<u8>>,
     ready_write: bool,
@@ -207,9 +208,11 @@ impl AsyncWrite for MaybePendingSeek {
 }
 
 impl AsyncSeek for MaybePendingSeek {
-    fn poll_seek(mut self: Pin<&mut Self>, cx: &mut Context<'_>, pos: SeekFrom)
-        -> Poll<io::Result<u64>>
-    {
+    fn poll_seek(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        pos: SeekFrom,
+    ) -> Poll<io::Result<u64>> {
         if self.ready_seek {
             self.ready_seek = false;
             Pin::new(&mut self.inner).poll_seek(cx, pos)

@@ -20,9 +20,7 @@ where
     St: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MapErr")
-            .field("stream", &self.stream)
-            .finish()
+        f.debug_struct("MapErr").field("stream", &self.stream).finish()
     }
 }
 
@@ -85,10 +83,7 @@ where
 {
     type Item = Result<St::Ok, E>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.as_mut()
             .stream()
             .try_poll_next(cx)
