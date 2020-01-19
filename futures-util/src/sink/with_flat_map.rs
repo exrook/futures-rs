@@ -1,7 +1,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -20,7 +20,8 @@ impl<Si, Item, U, St, F> Unpin for WithFlatMap<Si, Item, U, St, F>
 where
     Si: Unpin,
     St: Unpin,
-{}
+{
+}
 
 impl<Si, Item, U, St, F> fmt::Debug for WithFlatMap<Si, Item, U, St, F>
 where
@@ -48,13 +49,7 @@ where
     unsafe_pinned!(stream: Option<St>);
 
     pub(super) fn new(sink: Si, f: F) -> Self {
-        WithFlatMap {
-            sink,
-            f,
-            stream: None,
-            buffer: None,
-            _marker: PhantomData,
-        }
+        WithFlatMap { sink, f, stream: None, buffer: None, _marker: PhantomData }
     }
 
     /// Get a shared reference to the inner sink.
@@ -80,12 +75,8 @@ where
         self.sink
     }
 
-    fn try_empty_stream(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Si::Error>> {
-        let WithFlatMap { sink, stream, buffer, .. } =
-            unsafe { self.get_unchecked_mut() };
+    fn try_empty_stream(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Si::Error>> {
+        let WithFlatMap { sink, stream, buffer, .. } = unsafe { self.get_unchecked_mut() };
         let mut sink = unsafe { Pin::new_unchecked(sink) };
         let mut stream = unsafe { Pin::new_unchecked(stream) };
 
@@ -119,10 +110,7 @@ where
 {
     type Item = S::Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<S::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 
@@ -150,35 +138,23 @@ where
 {
     type Error = Si::Error;
 
-    fn poll_ready(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.try_empty_stream(cx)
     }
 
-    fn start_send(
-        mut self: Pin<&mut Self>,
-        item: U,
-    ) -> Result<(), Self::Error> {
+    fn start_send(mut self: Pin<&mut Self>, item: U) -> Result<(), Self::Error> {
         assert!(self.stream.is_none());
         let stream = (self.as_mut().f())(item);
         self.stream().set(Some(stream));
         Ok(())
     }
 
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_stream(cx)?);
         self.as_mut().sink().poll_flush(cx)
     }
 
-    fn poll_close(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_stream(cx)?);
         self.as_mut().sink().poll_close(cx)
     }

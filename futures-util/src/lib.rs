@@ -3,20 +3,16 @@
 
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "read-initializer", feature(read_initializer))]
-
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
 // It cannot be included in the published code because this lints have false positives in the minimum required version.
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
-
 // The solution for this lint is not available on 1.39 which is the current minimum supported version.
 // Can be removed as of minimum supported 1.40 or if https://github.com/rust-lang/rust-clippy/issues/3941
 // get's implemented.
 #![allow(clippy::mem_replace_with_default)]
-
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
 #![doc(html_root_url = "https://docs.rs/futures-util/0.3.0")]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
@@ -70,10 +66,7 @@ macro_rules! delegate_sink {
             self.$field().poll_ready(cx)
         }
 
-        fn start_send(
-            self: Pin<&mut Self>,
-            item: $item,
-        ) -> Result<(), Self::Error> {
+        fn start_send(self: Pin<&mut Self>, item: $item) -> Result<(), Self::Error> {
             self.$field().start_send(item)
         }
 
@@ -90,19 +83,22 @@ macro_rules! delegate_sink {
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::Error>> {
             self.$field().poll_close(cx)
         }
-    }
+    };
 }
 
 pub mod future;
-#[doc(hidden)] pub use crate::future::{FutureExt, TryFutureExt};
+#[doc(hidden)]
+pub use crate::future::{FutureExt, TryFutureExt};
 
 pub mod stream;
-#[doc(hidden)] pub use crate::stream::{StreamExt, TryStreamExt};
+#[doc(hidden)]
+pub use crate::stream::{StreamExt, TryStreamExt};
 
 #[cfg(feature = "sink")]
 pub mod sink;
 #[cfg(feature = "sink")]
-#[doc(hidden)] pub use crate::sink::SinkExt;
+#[doc(hidden)]
+pub use crate::sink::SinkExt;
 
 pub mod task;
 
@@ -116,7 +112,8 @@ pub mod compat;
 pub mod io;
 #[cfg(feature = "io")]
 #[cfg(feature = "std")]
-#[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
+#[doc(hidden)]
+pub use crate::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]

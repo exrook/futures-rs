@@ -22,21 +22,14 @@ impl<Fut> AssertUnmoved<Fut> {
     unsafe_unpinned!(this_ptr: *const Self);
 
     pub(super) fn new(future: Fut) -> Self {
-        Self {
-            future,
-            this_ptr: ptr::null(),
-            _pinned: PhantomPinned,
-        }
+        Self { future, this_ptr: ptr::null(), _pinned: PhantomPinned }
     }
 }
 
 impl<Fut: Future> Future for AssertUnmoved<Fut> {
     type Output = Fut::Output;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let cur_this = &*self as *const Self;
         if self.this_ptr.is_null() {
             // First time being polled

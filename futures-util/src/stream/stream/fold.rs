@@ -32,9 +32,10 @@ where
 }
 
 impl<St, Fut, T, F> Fold<St, Fut, T, F>
-where St: Stream,
-      F: FnMut(T, St::Item) -> Fut,
-      Fut: Future<Output = T>,
+where
+    St: Stream,
+    F: FnMut(T, St::Item) -> Fut,
+    Fut: Future<Output = T>,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
@@ -42,19 +43,15 @@ where St: Stream,
     unsafe_pinned!(future: Option<Fut>);
 
     pub(super) fn new(stream: St, f: F, t: T) -> Fold<St, Fut, T, F> {
-        Fold {
-            stream,
-            f,
-            accum: Some(t),
-            future: None,
-        }
+        Fold { stream, f, accum: Some(t), future: None }
     }
 }
 
 impl<St, Fut, T, F> FusedFuture for Fold<St, Fut, T, F>
-    where St: Stream,
-          F: FnMut(T, St::Item) -> Fut,
-          Fut: Future<Output = T>,
+where
+    St: Stream,
+    F: FnMut(T, St::Item) -> Fut,
+    Fut: Future<Output = T>,
 {
     fn is_terminated(&self) -> bool {
         self.accum.is_none() && self.future.is_none()
@@ -62,9 +59,10 @@ impl<St, Fut, T, F> FusedFuture for Fold<St, Fut, T, F>
 }
 
 impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
-    where St: Stream,
-          F: FnMut(T, St::Item) -> Fut,
-          Fut: Future<Output = T>,
+where
+    St: Stream,
+    F: FnMut(T, St::Item) -> Fut,
+    Fut: Future<Output = T>,
 {
     type Output = T;
 
@@ -78,14 +76,13 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
             }
 
             let item = ready!(self.as_mut().stream().poll_next(cx));
-            let accum = self.as_mut().accum().take()
-                .expect("Fold polled after completion");
+            let accum = self.as_mut().accum().take().expect("Fold polled after completion");
 
             if let Some(e) = item {
                 let future = (self.as_mut().f())(accum, e);
                 self.as_mut().future().set(Some(future));
             } else {
-                return Poll::Ready(accum)
+                return Poll::Ready(accum);
             }
         }
     }

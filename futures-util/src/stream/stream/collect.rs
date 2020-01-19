@@ -24,16 +24,14 @@ impl<St: Stream, C: Default> Collect<St, C> {
     }
 
     pub(super) fn new(stream: St) -> Collect<St, C> {
-        Collect {
-            stream,
-            collection: Default::default(),
-        }
+        Collect { stream, collection: Default::default() }
     }
 }
 
 impl<St, C> FusedFuture for Collect<St, C>
-where St: FusedStream,
-      C: Default + Extend<St:: Item>
+where
+    St: FusedStream,
+    C: Default + Extend<St::Item>,
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
@@ -41,8 +39,9 @@ where St: FusedStream,
 }
 
 impl<St, C> Future for Collect<St, C>
-where St: Stream,
-      C: Default + Extend<St:: Item>
+where
+    St: Stream,
+    C: Default + Extend<St::Item>,
 {
     type Output = C;
 

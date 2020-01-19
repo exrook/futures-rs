@@ -23,9 +23,7 @@ where
     unsafe_pinned!(inner: FlattenStreamSink<Fut>);
 
     pub(super) fn new(future: Fut) -> Self {
-        Self {
-            inner: FlattenStreamSink::new(future),
-        }
+        Self { inner: FlattenStreamSink::new(future) }
     }
 }
 

@@ -1,3 +1,4 @@
+use super::DEFAULT_BUF_SIZE;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
@@ -6,7 +7,6 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
 use std::io::{self, Write};
 use std::pin::Pin;
-use super::DEFAULT_BUF_SIZE;
 
 /// Wraps a writer and buffers its output.
 ///
@@ -49,11 +49,7 @@ impl<W: AsyncWrite> BufWriter<W> {
 
     /// Creates a new `BufWriter` with the specified buffer capacity.
     pub fn with_capacity(cap: usize, inner: W) -> Self {
-        Self {
-            inner,
-            buf: Vec::with_capacity(cap),
-            written: 0,
-        }
+        Self { inner, buf: Vec::with_capacity(cap), written: 0 }
     }
 
     fn flush_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
@@ -185,10 +181,7 @@ impl<W: AsyncRead> AsyncRead for BufWriter<W> {
 }
 
 impl<W: AsyncBufRead> AsyncBufRead for BufWriter<W> {
-    fn poll_fill_buf(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<&[u8]>> {
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
         self.inner().poll_fill_buf(cx)
     }
 

@@ -15,20 +15,17 @@ impl<Fut: Future> FlattenStream<Fut> {
     unsafe_pinned!(state: State<Fut, Fut::Output>);
 
     pub(super) fn new(future: Fut) -> FlattenStream<Fut> {
-        FlattenStream {
-            state: State::Future(future)
-        }
+        FlattenStream { state: State::Future(future) }
     }
 }
 
 impl<Fut> fmt::Debug for FlattenStream<Fut>
-    where Fut: Future + fmt::Debug,
-          Fut::Output: fmt::Debug,
+where
+    Fut: Future + fmt::Debug,
+    Fut::Output: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FlattenStream")
-            .field("state", &self.state)
-            .finish()
+        f.debug_struct("FlattenStream").field("state", &self.state).finish()
     }
 }
 
@@ -55,8 +52,9 @@ impl<Fut, St> State<Fut, St> {
 }
 
 impl<Fut> FusedStream for FlattenStream<Fut>
-    where Fut: Future,
-          Fut::Output: Stream + FusedStream,
+where
+    Fut: Future,
+    Fut::Output: Stream + FusedStream,
 {
     fn is_terminated(&self) -> bool {
         match &self.state {
@@ -67,8 +65,9 @@ impl<Fut> FusedStream for FlattenStream<Fut>
 }
 
 impl<Fut> Stream for FlattenStream<Fut>
-    where Fut: Future,
-          Fut::Output: Stream,
+where
+    Fut: Future,
+    Fut::Output: Stream,
 {
     type Item = <Fut::Output as Stream>::Item;
 

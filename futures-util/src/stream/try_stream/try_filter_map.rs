@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
-use futures_core::future::{TryFuture};
-use futures_core::stream::{Stream, TryStream, FusedStream};
+use futures_core::future::TryFuture;
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -17,8 +17,11 @@ pub struct TryFilterMap<St, Fut, F> {
 }
 
 impl<St, Fut, F> Unpin for TryFilterMap<St, Fut, F>
-    where St: Unpin, Fut: Unpin,
-{}
+where
+    St: Unpin,
+    Fut: Unpin,
+{
+}
 
 impl<St, Fut, F> fmt::Debug for TryFilterMap<St, Fut, F>
 where
@@ -76,9 +79,10 @@ impl<St, Fut, F> TryFilterMap<St, Fut, F> {
 }
 
 impl<St, Fut, F, T> FusedStream for TryFilterMap<St, Fut, F>
-    where St: TryStream + FusedStream,
-          Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
-          F: FnMut(St::Ok) -> Fut,
+where
+    St: TryStream + FusedStream,
+    Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
+    F: FnMut(St::Ok) -> Fut,
 {
     fn is_terminated(&self) -> bool {
         self.pending.is_none() && self.stream.is_terminated()
@@ -86,9 +90,10 @@ impl<St, Fut, F, T> FusedStream for TryFilterMap<St, Fut, F>
 }
 
 impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
-    where St: TryStream,
-          Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
-          F: FnMut(St::Ok) -> Fut,
+where
+    St: TryStream,
+    Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
+    F: FnMut(St::Ok) -> Fut,
 {
     type Item = Result<T, St::Error>;
 
@@ -128,7 +133,8 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for TryFilterMap<S, Fut, F>
-    where S: Sink<Item>,
+where
+    S: Sink<Item>,
 {
     type Error = S::Error;
 

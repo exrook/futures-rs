@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -25,7 +25,7 @@ pub fn once<Fut: Future>(future: Fut) -> Once<Fut> {
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Once<Fut> {
-    future: Option<Fut>
+    future: Option<Fut>,
 }
 
 impl<Fut: Unpin> Unpin for Once<Fut> {}

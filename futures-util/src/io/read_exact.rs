@@ -33,7 +33,7 @@ impl<R: AsyncRead + ?Sized + Unpin> Future for ReadExact<'_, R> {
                 this.buf = rest;
             }
             if n == 0 {
-                return Poll::Ready(Err(io::ErrorKind::UnexpectedEof.into()))
+                return Poll::Ready(Err(io::ErrorKind::UnexpectedEof.into()));
             }
         }
         Poll::Ready(Ok(()))

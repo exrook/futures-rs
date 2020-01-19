@@ -16,25 +16,26 @@ impl<Fut: Future, F: FnOnce(&Fut::Output)> Inspect<Fut, F> {
     unsafe_unpinned!(f: Option<F>);
 
     pub(super) fn new(future: Fut, f: F) -> Inspect<Fut, F> {
-        Inspect {
-            future,
-            f: Some(f),
-        }
+        Inspect { future, f: Some(f) }
     }
 }
 
 impl<Fut: Future + Unpin, F> Unpin for Inspect<Fut, F> {}
 
 impl<Fut, F> FusedFuture for Inspect<Fut, F>
-    where Fut: FusedFuture,
-          F: FnOnce(&Fut::Output),
+where
+    Fut: FusedFuture,
+    F: FnOnce(&Fut::Output),
 {
-    fn is_terminated(&self) -> bool { self.future.is_terminated() }
+    fn is_terminated(&self) -> bool {
+        self.future.is_terminated()
+    }
 }
 
 impl<Fut, F> Future for Inspect<Fut, F>
-    where Fut: Future,
-          F: FnOnce(&Fut::Output),
+where
+    Fut: Future,
+    F: FnOnce(&Fut::Output),
 {
     type Output = Fut::Output;
 

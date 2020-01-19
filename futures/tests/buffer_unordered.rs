@@ -1,4 +1,4 @@
-use futures::channel::{oneshot, mpsc};
+use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;

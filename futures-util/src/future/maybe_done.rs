@@ -66,7 +66,7 @@ impl<Fut: Future> MaybeDone<Fut> {
         unsafe {
             let this = self.get_unchecked_mut();
             match this {
-                MaybeDone::Done(_) => {},
+                MaybeDone::Done(_) => {}
                 MaybeDone::Future(_) | MaybeDone::Gone => return None,
             };
             if let MaybeDone::Done(output) = mem::replace(this, MaybeDone::Gone) {

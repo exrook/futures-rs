@@ -1,7 +1,7 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream, FusedStream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -37,9 +37,10 @@ impl<St, Fut, F> OrElse<St, Fut, F> {
 }
 
 impl<St, Fut, F> OrElse<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Error) -> Fut,
-          Fut: TryFuture<Ok = St::Ok>,
+where
+    St: TryStream,
+    F: FnMut(St::Error) -> Fut,
+    Fut: TryFuture<Ok = St::Ok>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self { stream, future: None, f }
@@ -79,16 +80,14 @@ impl<St, Fut, F> OrElse<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for OrElse<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Error) -> Fut,
-          Fut: TryFuture<Ok = St::Ok>,
+where
+    St: TryStream,
+    F: FnMut(St::Error) -> Fut,
+    Fut: TryFuture<Ok = St::Ok>,
 {
     type Item = Result<St::Ok, Fut::Error>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.future.is_none() {
             let item = match ready!(self.as_mut().stream().try_poll_next(cx)) {
                 None => return Poll::Ready(None),
@@ -117,9 +116,10 @@ impl<St, Fut, F> Stream for OrElse<St, Fut, F>
 }
 
 impl<St, Fut, F> FusedStream for OrElse<St, Fut, F>
-    where St: TryStream + FusedStream,
-          F: FnMut(St::Error) -> Fut,
-          Fut: TryFuture<Ok = St::Ok>,
+where
+    St: TryStream + FusedStream,
+    F: FnMut(St::Error) -> Fut,
+    Fut: TryFuture<Ok = St::Ok>,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
@@ -129,7 +129,8 @@ impl<St, Fut, F> FusedStream for OrElse<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for OrElse<S, Fut, F>
-    where S: Sink<Item>,
+where
+    S: Sink<Item>,
 {
     type Error = S::Error;
 

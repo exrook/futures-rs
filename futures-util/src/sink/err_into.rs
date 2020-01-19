@@ -1,8 +1,8 @@
 use crate::sink::{SinkExt, SinkMapErr};
 use core::pin::Pin;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use futures_sink::{Sink};
+use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
 /// Sink for the [`sink_err_into`](super::SinkExt::sink_err_into) method.
@@ -13,15 +13,14 @@ pub struct SinkErrInto<Si: Sink<Item>, Item, E> {
 }
 
 impl<Si, E, Item> SinkErrInto<Si, Item, E>
-    where Si: Sink<Item>,
-          Si::Error: Into<E>,
+where
+    Si: Sink<Item>,
+    Si::Error: Into<E>,
 {
     unsafe_pinned!(sink: SinkMapErr<Si, fn(Si::Error) -> E>);
 
     pub(super) fn new(sink: Si) -> Self {
-        SinkErrInto {
-            sink: SinkExt::sink_map_err(sink, Into::into),
-        }
+        SinkErrInto { sink: SinkExt::sink_map_err(sink, Into::into) }
     }
 
     /// Get a shared reference to the inner sink.
@@ -49,8 +48,9 @@ impl<Si, E, Item> SinkErrInto<Si, Item, E>
 }
 
 impl<Si, Item, E> Sink<Item> for SinkErrInto<Si, Item, E>
-    where Si: Sink<Item>,
-          Si::Error: Into<E>,
+where
+    Si: Sink<Item>,
+    Si::Error: Into<E>,
 {
     type Error = E;
 
@@ -59,15 +59,13 @@ impl<Si, Item, E> Sink<Item> for SinkErrInto<Si, Item, E>
 
 // Forwarding impl of Stream from the underlying sink
 impl<S, Item, E> Stream for SinkErrInto<S, Item, E>
-    where S: Sink<Item> + Stream,
-          S::Error: Into<E>
+where
+    S: Sink<Item> + Stream,
+    S::Error: Into<E>,
 {
     type Item = S::Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<S::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 
@@ -77,8 +75,9 @@ impl<S, Item, E> Stream for SinkErrInto<S, Item, E>
 }
 
 impl<S, Item, E> FusedStream for SinkErrInto<S, Item, E>
-    where S: Sink<Item> + FusedStream,
-          S::Error: Into<E>
+where
+    S: Sink<Item> + FusedStream,
+    S::Error: Into<E>,
 {
     fn is_terminated(&self) -> bool {
         self.sink.is_terminated()

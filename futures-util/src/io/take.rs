@@ -1,10 +1,10 @@
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
-use futures_io::{AsyncRead, AsyncBufRead};
+use futures_io::{AsyncBufRead, AsyncRead};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::{cmp, io};
 use std::pin::Pin;
+use std::{cmp, io};
 
 /// Reader for the [`take`](super::AsyncReadExt::take) method.
 #[derive(Debug)]
@@ -15,7 +15,7 @@ pub struct Take<R> {
     limit_: u64,
 }
 
-impl<R: Unpin> Unpin for Take<R> { }
+impl<R: Unpin> Unpin for Take<R> {}
 
 impl<R: AsyncRead> Take<R> {
     unsafe_pinned!(inner: R);

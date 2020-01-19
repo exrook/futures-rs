@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures::executor::block_on_stream;
-use futures::future::{ok, err, TryFutureExt};
+use futures::future::{err, ok, TryFutureExt};
 use futures::sink::Sink;
 use futures::stream::{self, Stream, StreamExt};
 use futures::task::{Context, Poll};
@@ -20,7 +20,7 @@ fn successful_future() {
 }
 
 struct PanickingStream<T, E> {
-    _marker: PhantomData<(T, E)>
+    _marker: PhantomData<(T, E)>,
 }
 
 impl<T, E> Stream for PanickingStream<T, E> {

@@ -20,15 +20,14 @@ where
     St: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Map")
-            .field("stream", &self.stream)
-            .finish()
+        f.debug_struct("Map").field("stream", &self.stream).finish()
     }
 }
 
 impl<St, T, F> Map<St, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> T,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> T,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
@@ -71,8 +70,9 @@ impl<St, T, F> Map<St, F>
 }
 
 impl<St, F, T> FusedStream for Map<St, F>
-    where St: FusedStream,
-          F: FnMut(St::Item) -> T,
+where
+    St: FusedStream,
+    F: FnMut(St::Item) -> T,
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
@@ -80,19 +80,14 @@ impl<St, F, T> FusedStream for Map<St, F>
 }
 
 impl<St, F, T> Stream for Map<St, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> T,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> T,
 {
     type Item = T;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<T>> {
-        self.as_mut()
-            .stream()
-            .poll_next(cx)
-            .map(|opt| opt.map(|x| self.as_mut().f()(x)))
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<T>> {
+        self.as_mut().stream().poll_next(cx).map(|opt| opt.map(|x| self.as_mut().f()(x)))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -103,8 +98,9 @@ impl<St, F, T> Stream for Map<St, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, F, T, Item> Sink<Item> for Map<S, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(S::Item) -> T,
+where
+    S: Stream + Sink<Item>,
+    F: FnMut(S::Item) -> T,
 {
     type Error = S::Error;
 

@@ -1,4 +1,4 @@
-use crate::stream::{StreamExt, Fuse};
+use crate::stream::{Fuse, StreamExt};
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{Stream, TryStream};
@@ -29,11 +29,7 @@ where
     unsafe_unpinned!(buffered_item: Option<St::Ok>);
 
     pub(super) fn new(stream: St, sink: Si) -> Self {
-        Forward {
-            sink: Some(sink),
-            stream: stream.fuse(),
-                buffered_item: None,
-        }
+        Forward { sink: Some(sink), stream: stream.fuse(), buffered_item: None }
     }
 
     fn try_start_send(
@@ -70,10 +66,7 @@ where
 {
     type Output = Result<(), E>;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.as_mut().buffered_item().take() {
@@ -82,16 +75,15 @@ where
 
         loop {
             match self.as_mut().stream().poll_next(cx)? {
-                Poll::Ready(Some(item)) =>
-                   ready!(self.as_mut().try_start_send(cx, item))?,
+                Poll::Ready(Some(item)) => ready!(self.as_mut().try_start_send(cx, item))?,
                 Poll::Ready(None) => {
                     ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL).poll_close(cx))?;
                     self.as_mut().sink().set(None);
-                    return Poll::Ready(Ok(()))
+                    return Poll::Ready(Ok(()));
                 }
                 Poll::Pending => {
                     ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL).poll_flush(cx))?;
-                    return Poll::Pending
+                    return Poll::Pending;
                 }
             }
         }
