@@ -28,10 +28,7 @@ impl<St: Stream> Peekable<St> {
     unsafe_unpinned!(peeked: Option<St::Item>);
 
     pub(super) fn new(stream: St) -> Peekable<St> {
-        Peekable {
-            stream: stream.fuse(),
-            peeked: None,
-        }
+        Peekable { stream: stream.fuse(), peeked: None }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -100,10 +97,7 @@ impl<St: Stream> Peekable<St> {
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
-    pub fn poll_peek(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<&St::Item>> {
+    pub fn poll_peek(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<&St::Item>> {
         match self.do_poll_peek(cx) {
             Either::Left(_) => Poll::Pending,
             Either::Right(poll) => Poll::Ready(poll),
@@ -164,9 +158,7 @@ where
     St::Item: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Peek")
-            .field("inner", &self.inner)
-            .finish()
+        f.debug_struct("Peek").field("inner", &self.inner).finish()
     }
 }
 

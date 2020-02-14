@@ -1,7 +1,7 @@
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt};
-use futures::stream::{self, StreamExt, TryStreamExt};
 use futures::io::{AsyncBufReadExt, Cursor};
+use futures::stream::{self, StreamExt, TryStreamExt};
 use futures::task::Poll;
 use futures_test::io::AsyncReadTestExt;
 use futures_test::task::noop_context;
@@ -41,10 +41,8 @@ fn maybe_pending() {
     assert_eq!(run(buf.read_line(&mut v)).unwrap(), 2);
     assert_eq!(v, "12");
 
-    let mut buf = stream::iter(vec![&b"12"[..], &b"\n\n"[..]])
-        .map(Ok)
-        .into_async_read()
-        .interleave_pending();
+    let mut buf =
+        stream::iter(vec![&b"12"[..], &b"\n\n"[..]]).map(Ok).into_async_read().interleave_pending();
     let mut v = String::new();
     assert_eq!(run(buf.read_line(&mut v)).unwrap(), 3);
     assert_eq!(v, "12\n");

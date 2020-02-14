@@ -102,12 +102,8 @@ where
                 }
             }
 
-            if let Some(item) = ready!(self
-                .as_mut()
-                .next()
-                .as_pin_mut()
-                .unwrap()
-                .try_poll_next(cx)?)
+            if let Some(item) =
+                ready!(self.as_mut().next().as_pin_mut().unwrap().try_poll_next(cx)?)
             {
                 return Poll::Ready(Some(Ok(item)));
             } else {

@@ -1,8 +1,8 @@
 use core::pin::Pin;
-use futures::io::{AsyncRead, AsyncBufRead};
+use futures::io::{AsyncBufRead, AsyncRead};
 use futures::stream::{self, TryStreamExt};
 use futures::task::Poll;
-use futures_test::{task::noop_context, stream::StreamTestExt};
+use futures_test::{stream::StreamTestExt, task::noop_context};
 
 macro_rules! assert_read {
     ($reader:expr, $buf:expr, $item:expr) => {

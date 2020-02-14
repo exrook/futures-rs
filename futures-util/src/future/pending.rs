@@ -33,9 +33,7 @@ impl<T> FusedFuture for Pending<T> {
 /// # });
 /// ```
 pub fn pending<T>() -> Pending<T> {
-    Pending {
-        _data: marker::PhantomData,
-    }
+    Pending { _data: marker::PhantomData }
 }
 
 impl<T> Future for Pending<T> {
@@ -46,8 +44,7 @@ impl<T> Future for Pending<T> {
     }
 }
 
-impl<T> Unpin for Pending<T> {
-}
+impl<T> Unpin for Pending<T> {}
 
 impl<T> Clone for Pending<T> {
     fn clone(&self) -> Self {

@@ -73,12 +73,8 @@ where
 {
     type Item = Result<St::Ok, E>;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        self.stream().try_poll_next(cx)
-            .map(|res| res.map(|some| some.map_err(Into::into)))
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.stream().try_poll_next(cx).map(|res| res.map(|some| some.map_err(Into::into)))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

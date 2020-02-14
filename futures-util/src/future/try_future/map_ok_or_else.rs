@@ -26,9 +26,10 @@ impl<Fut, F, E> MapOkOrElse<Fut, F, E> {
 impl<Fut: Unpin, F, E> Unpin for MapOkOrElse<Fut, F, E> {}
 
 impl<Fut, F, E, T> FusedFuture for MapOkOrElse<Fut, F, E>
-    where Fut: TryFuture,
-          F: FnOnce(Fut::Ok) -> T,
-          E: FnOnce(Fut::Error) -> T,
+where
+    Fut: TryFuture,
+    F: FnOnce(Fut::Ok) -> T,
+    E: FnOnce(Fut::Error) -> T,
 {
     fn is_terminated(&self) -> bool {
         self.f.is_none() || self.e.is_none()
@@ -36,24 +37,29 @@ impl<Fut, F, E, T> FusedFuture for MapOkOrElse<Fut, F, E>
 }
 
 impl<Fut, F, E, T> Future for MapOkOrElse<Fut, F, E>
-    where Fut: TryFuture,
-          F: FnOnce(Fut::Ok) -> T,
-          E: FnOnce(Fut::Error) -> T,
+where
+    Fut: TryFuture,
+    F: FnOnce(Fut::Ok) -> T,
+    E: FnOnce(Fut::Error) -> T,
 {
     type Output = T;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
-        self.as_mut()
-            .future()
-            .try_poll(cx)
-            .map(|result| {
-                match result {
-                    Ok(i) => (self.as_mut().f().take().expect("MapOkOrElse must not be polled after it returned `Poll::Ready`"))(i),
-                    Err(e) => (self.as_mut().e().take().expect("MapOkOrElse must not be polled after it returned `Poll::Ready`"))(e),
-                }
-            })
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.as_mut().future().try_poll(cx).map(|result| match result {
+            Ok(i) => (self
+                .as_mut()
+                .f()
+                .take()
+                .expect("MapOkOrElse must not be polled after it returned `Poll::Ready`"))(
+                i
+            ),
+            Err(e) => (self
+                .as_mut()
+                .e()
+                .take()
+                .expect("MapOkOrElse must not be polled after it returned `Poll::Ready`"))(
+                e
+            ),
+        })
     }
 }

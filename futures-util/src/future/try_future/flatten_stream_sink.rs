@@ -28,9 +28,7 @@ where
     Fut::Ok: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FlattenStreamSink")
-            .field("state", &self.state)
-            .finish()
+        f.debug_struct("FlattenStreamSink").field("state", &self.state).finish()
     }
 }
 
@@ -41,9 +39,7 @@ where
     unsafe_pinned!(state: State<Fut, Fut::Ok>);
 
     pub(crate) fn new(future: Fut) -> Self {
-        Self {
-            state: State::Future(future),
-        }
+        Self { state: State::Future(future) }
     }
 }
 
@@ -136,10 +132,7 @@ where
 {
     type Error = Fut::Error;
 
-    fn poll_ready(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().state().poll_future(cx)?);
         match self.as_mut().state().get_pin_mut() {
             State::StreamOrSink(s) => s.poll_ready(cx),
@@ -165,10 +158,7 @@ where
         }
     }
 
-    fn poll_close(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let res = match self.as_mut().state().get_pin_mut() {
             State::StreamOrSink(s) => s.poll_close(cx),
             State::Future(_) | State::Done => Poll::Ready(Ok(())),

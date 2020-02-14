@@ -18,10 +18,7 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
     unsafe_unpinned!(items: C);
 
     pub(super) fn new(s: St) -> TryCollect<St, C> {
-        TryCollect {
-            stream: s,
-            items: Default::default(),
-        }
+        TryCollect { stream: s, items: Default::default() }
     }
 
     fn finish(self: Pin<&mut Self>) -> C {
@@ -48,10 +45,7 @@ where
 {
     type Output = Result<C, St::Error>;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
             match ready!(self.as_mut().stream().try_poll_next(cx)?) {
                 Some(x) => self.as_mut().items().extend(Some(x)),

@@ -23,10 +23,7 @@ where
     Fut: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Then")
-            .field("stream", &self.stream)
-            .field("future", &self.future)
-            .finish()
+        f.debug_struct("Then").field("stream", &self.stream).field("future", &self.future).finish()
     }
 }
 
@@ -37,15 +34,12 @@ impl<St, Fut, F> Then<St, Fut, F> {
 }
 
 impl<St, Fut, F> Then<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
 {
     pub(super) fn new(stream: St, f: F) -> Then<St, Fut, F> {
-        Then {
-            stream,
-            future: None,
-            f,
-        }
+        Then { stream, future: None, f }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -82,9 +76,10 @@ impl<St, Fut, F> Then<St, Fut, F>
 }
 
 impl<St, Fut, F> FusedStream for Then<St, Fut, F>
-    where St: FusedStream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future,
+where
+    St: FusedStream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
@@ -92,16 +87,14 @@ impl<St, Fut, F> FusedStream for Then<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for Then<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future,
 {
     type Item = Fut::Output;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Fut::Output>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Fut::Output>> {
         if self.future.is_none() {
             let item = match ready!(self.as_mut().stream().poll_next(cx)) {
                 None => return Poll::Ready(None),
@@ -131,7 +124,8 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for Then<S, Fut, F>
-    where S: Sink<Item>,
+where
+    S: Sink<Item>,
 {
     type Error = S::Error;
 

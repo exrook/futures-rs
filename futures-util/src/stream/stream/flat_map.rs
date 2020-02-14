@@ -39,10 +39,7 @@ where
     unsafe_pinned!(inner_stream: Option<U>);
 
     pub(super) fn new(stream: St, f: F) -> FlatMap<St, U, F> {
-        FlatMap {
-            stream: Map::new(stream, f),
-            inner_stream: None,
-        }
+        FlatMap { stream: Map::new(stream, f), inner_stream: None }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -86,11 +83,7 @@ where
 {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
-            && self
-                .inner_stream
-                .as_ref()
-                .map(FusedStream::is_terminated)
-                .unwrap_or(true)
+            && self.inner_stream.as_ref().map(FusedStream::is_terminated).unwrap_or(true)
     }
 }
 

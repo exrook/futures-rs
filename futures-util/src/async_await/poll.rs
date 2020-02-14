@@ -13,7 +13,7 @@ use futures_core::task::{Context, Poll};
 macro_rules! poll {
     ($x:expr $(,)?) => {
         $crate::async_await::poll($x).await
-    }
+    };
 }
 
 #[doc(hidden)]

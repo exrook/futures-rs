@@ -16,20 +16,14 @@ impl<Si: Unpin + ?Sized, Item> Unpin for Send<'_, Si, Item> {}
 
 impl<'a, Si: Sink<Item> + Unpin + ?Sized, Item> Send<'a, Si, Item> {
     pub(super) fn new(sink: &'a mut Si, item: Item) -> Self {
-        Send {
-            sink,
-            item: Some(item),
-        }
+        Send { sink, item: Some(item) }
     }
 }
 
 impl<Si: Sink<Item> + Unpin + ?Sized, Item> Future for Send<'_, Si, Item> {
     type Output = Result<(), Si::Error>;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
         if let Some(item) = this.item.take() {
             let mut sink = Pin::new(&mut this.sink);

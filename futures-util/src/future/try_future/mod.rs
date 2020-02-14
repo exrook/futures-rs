@@ -172,7 +172,7 @@ pub trait TryFutureExt: TryFuture {
     /// The provided closure `f` will only be called if this future is resolved
     /// to an [`Ok`]. If it resolves to an [`Err`], panics, or is dropped, then
     /// the provided closure will never be invoked.
-    /// 
+    ///
     /// The provided closure `e` will only be called if this future is resolved
     /// to an [`Err`]. If it resolves to an [`Ok`], panics, or is dropped, then
     /// the provided closure will never be invoked.
@@ -189,13 +189,13 @@ pub trait TryFutureExt: TryFuture {
     /// let future = async { Ok::<i32, i32>(5) };
     /// let future = future.map_ok_or_else(|x| x * 2, |x| x + 3);
     /// assert_eq!(future.await, 8);
-    /// 
+    ///
     /// let future = async { Err::<i32, i32>(5) };
     /// let future = future.map_ok_or_else(|x| x * 2, |x| x + 3);
     /// assert_eq!(future.await, 10);
     /// # });
     /// ```
-    /// 
+    ///
     fn map_ok_or_else<T, E, F>(self, e: E, f: F) -> MapOkOrElse<Self, F, E>
     where
         F: FnOnce(Self::Ok) -> T,

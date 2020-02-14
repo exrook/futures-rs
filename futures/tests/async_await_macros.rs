@@ -1,12 +1,12 @@
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
-use futures::{pending, pin_mut, poll, join, try_join, select};
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
-use futures::future::{self, FutureExt, poll_fn};
+use futures::future::{self, poll_fn, FutureExt};
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use futures::task::{Context, Poll};
+use futures::{join, pending, pin_mut, poll, select, try_join};
 
 #[test]
 fn poll_and_pending() {
@@ -185,9 +185,7 @@ fn select_size() {
 #[test]
 fn select_on_non_unpin_expressions() {
     // The returned Future is !Unpin
-    let make_non_unpin_fut = || { async {
-        5
-    }};
+    let make_non_unpin_fut = || async { 5 };
 
     let res = block_on(async {
         let select_res;
@@ -203,9 +201,7 @@ fn select_on_non_unpin_expressions() {
 #[test]
 fn select_on_non_unpin_expressions_with_default() {
     // The returned Future is !Unpin
-    let make_non_unpin_fut = || { async {
-        5
-    }};
+    let make_non_unpin_fut = || async { 5 };
 
     let res = block_on(async {
         let select_res;
@@ -222,9 +218,7 @@ fn select_on_non_unpin_expressions_with_default() {
 #[test]
 fn select_on_non_unpin_size() {
     // The returned Future is !Unpin
-    let make_non_unpin_fut = || { async {
-        5
-    }};
+    let make_non_unpin_fut = || async { 5 };
 
     let fut = async {
         let select_res;
@@ -344,17 +338,10 @@ fn try_join_size() {
 
 #[test]
 fn join_doesnt_require_unpin() {
-    let _ = async {
-        join!(async {}, async {})
-    };
+    let _ = async { join!(async {}, async {}) };
 }
 
 #[test]
 fn try_join_doesnt_require_unpin() {
-    let _ = async {
-        try_join!(
-            async { Ok::<(), ()>(()) },
-            async { Ok::<(), ()>(()) },
-        )
-    };
+    let _ = async { try_join!(async { Ok::<(), ()>(()) }, async { Ok::<(), ()>(()) },) };
 }
