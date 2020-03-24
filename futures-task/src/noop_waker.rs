@@ -1,9 +1,9 @@
 //! Utilities for creating zero-cost wakers that don't do anything.
 
-#[cfg(feature = "std")]
-use core::cell::UnsafeCell;
 use core::ptr::null;
 use core::task::{RawWaker, RawWakerVTable, Waker};
+#[cfg(feature = "std")]
+use once_cell::sync::Lazy;
 
 unsafe fn noop_clone(_data: *const ()) -> RawWaker {
     noop_raw_waker()
@@ -45,9 +45,16 @@ pub fn noop_waker() -> Waker {
 #[inline]
 #[cfg(feature = "std")]
 pub fn noop_waker_ref() -> &'static Waker {
-    thread_local! {
-        static NOOP_WAKER_INSTANCE: UnsafeCell<Waker> =
-            UnsafeCell::new(noop_waker());
+    static NOOP_WAKER_INSTANCE: Lazy<Waker> = Lazy::new(noop_waker);
+    &*NOOP_WAKER_INSTANCE
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[cfg(feature = "std")]
+    fn issue_2091_cross_thread_segfault() {
+        let waker = std::thread::spawn(super::noop_waker_ref).join().unwrap();
+        waker.wake_by_ref();
     }
-    NOOP_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }
