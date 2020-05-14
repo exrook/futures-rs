@@ -380,8 +380,8 @@ pub mod sink {
     pub use futures_sink::Sink;
 
     pub use futures_util::sink::{
-        drain, unfold, Close, Drain, Fanout, Feed, Flush, Send, SendAll, SinkErrInto, SinkExt,
-        SinkMapErr, Unfold, With, WithFlatMap,
+        drain, unfold, Close, Drain, Fanout, Feed, FeedAll, Flush, Send, SendAll, SinkErrInto,
+        SinkExt, SinkMapErr, Unfold, With, WithFlatMap,
     };
 
     #[cfg(feature = "alloc")]
