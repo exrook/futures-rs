@@ -1,10 +1,10 @@
 use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 /// Sink for the [`with_flat_map`](super::SinkExt::with_flat_map) method.
 #[pin_project]
@@ -41,42 +41,31 @@ where
     St: Stream<Item = Result<Item, Si::Error>>,
 {
     pub(super) fn new(sink: Si, f: F) -> Self {
-        WithFlatMap {
-            sink,
-            f,
-            stream: None,
-            buffer: None,
-            _marker: PhantomData,
-        }
+        WithFlatMap { sink, f, stream: None, buffer: None, _marker: PhantomData }
     }
 
     delegate_access_inner!(sink, Si, ());
 
-    #[project]
-    fn try_empty_stream(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Si::Error>> {
-        #[project]
-        let WithFlatMap { mut sink, mut stream, buffer, .. } = self.project();
+    fn try_empty_stream(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Si::Error>> {
+        let mut this = self.project();
 
-        if buffer.is_some() {
-            ready!(sink.as_mut().poll_ready(cx))?;
-            let item = buffer.take().unwrap();
-            sink.as_mut().start_send(item)?;
+        if this.buffer.is_some() {
+            ready!(this.sink.as_mut().poll_ready(cx))?;
+            let item = this.buffer.take().unwrap();
+            this.sink.as_mut().start_send(item)?;
         }
-        if let Some(mut some_stream) = stream.as_mut().as_pin_mut() {
+        if let Some(mut some_stream) = this.stream.as_mut().as_pin_mut() {
             while let Some(item) = ready!(some_stream.as_mut().poll_next(cx)?) {
-                match sink.as_mut().poll_ready(cx)? {
-                    Poll::Ready(()) => sink.as_mut().start_send(item)?,
+                match this.sink.as_mut().poll_ready(cx)? {
+                    Poll::Ready(()) => this.sink.as_mut().start_send(item)?,
                     Poll::Pending => {
-                        *buffer = Some(item);
+                        *this.buffer = Some(item);
                         return Poll::Pending;
                     }
                 };
             }
         }
-        stream.set(None);
+        this.stream.set(None);
         Poll::Ready(Ok(()))
     }
 }
@@ -112,38 +101,24 @@ where
 {
     type Error = Si::Error;
 
-    fn poll_ready(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.try_empty_stream(cx)
     }
 
-    #[project]
-    fn start_send(
-        self: Pin<&mut Self>,
-        item: U,
-    ) -> Result<(), Self::Error> {
-        #[project]
-        let WithFlatMap { mut stream, f, .. } = self.project();
+    fn start_send(self: Pin<&mut Self>, item: U) -> Result<(), Self::Error> {
+        let mut this = self.project();
 
-        assert!(stream.is_none());
-        stream.set(Some(f(item)));
+        assert!(this.stream.is_none());
+        this.stream.set(Some((this.f)(item)));
         Ok(())
     }
 
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_stream(cx)?);
         self.project().sink.poll_flush(cx)
     }
 
-    fn poll_close(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_stream(cx)?);
         self.project().sink.poll_close(cx)
     }

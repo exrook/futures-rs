@@ -1,12 +1,12 @@
 use crate::stream::Fuse;
-use futures_core::stream::{Stream, FusedStream};
+use alloc::vec::Vec;
+use core::mem;
+use core::pin::Pin;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::{pin_project, project};
-use core::mem;
-use core::pin::Pin;
-use alloc::vec::Vec;
+use pin_project::pin_project;
 
 /// Stream for the [`ready_chunks`](super::StreamExt::ready_chunks) method.
 #[pin_project]
@@ -19,7 +19,10 @@ pub struct ReadyChunks<St: Stream> {
     cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
 }
 
-impl<St: Stream> ReadyChunks<St> where St: Stream {
+impl<St: Stream> ReadyChunks<St>
+where
+    St: Stream,
+{
     pub(super) fn new(stream: St, capacity: usize) -> ReadyChunks<St> {
         assert!(capacity > 0);
 
@@ -36,23 +39,18 @@ impl<St: Stream> ReadyChunks<St> where St: Stream {
 impl<St: Stream> Stream for ReadyChunks<St> {
     type Item = Vec<St::Item>;
 
-    #[project]
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        #[project]
-        let ReadyChunks { items, cap, mut stream } = self.project();
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut this = self.project();
 
         loop {
-            match stream.as_mut().poll_next(cx) {
+            match this.stream.as_mut().poll_next(cx) {
                 // Flush all collected data if underlying stream doesn't contain
                 // more ready values
                 Poll::Pending => {
-                    return if items.is_empty() {
+                    return if this.items.is_empty() {
                         Poll::Pending
                     } else {
-                        Poll::Ready(Some(mem::replace(items, Vec::with_capacity(*cap))))
+                        Poll::Ready(Some(mem::replace(this.items, Vec::with_capacity(*this.cap))))
                     }
                 }
 
@@ -60,19 +58,22 @@ impl<St: Stream> Stream for ReadyChunks<St> {
                 // If so, replace our buffer with a new and empty one and return
                 // the full one.
                 Poll::Ready(Some(item)) => {
-                    items.push(item);
-                    if items.len() >= *cap {
-                        return Poll::Ready(Some(mem::replace(items, Vec::with_capacity(*cap))))
+                    this.items.push(item);
+                    if this.items.len() >= *this.cap {
+                        return Poll::Ready(Some(mem::replace(
+                            this.items,
+                            Vec::with_capacity(*this.cap),
+                        )));
                     }
                 }
 
                 // Since the underlying stream ran out of values, return what we
                 // have buffered, if we have anything.
                 Poll::Ready(None) => {
-                    let last = if items.is_empty() {
+                    let last = if this.items.is_empty() {
                         None
                     } else {
-                        let full_buf = mem::replace(items, Vec::new());
+                        let full_buf = mem::replace(this.items, Vec::new());
                         Some(full_buf)
                     };
 

@@ -4,10 +4,10 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 /// Future for the [`forward`](super::StreamExt::forward) method.
-#[pin_project]
+#[pin_project(project = ForwardProj)]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Forward<St, Si, Item> {
@@ -20,11 +20,7 @@ pub struct Forward<St, Si, Item> {
 
 impl<St, Si, Item> Forward<St, Si, Item> {
     pub(crate) fn new(stream: St, sink: Si) -> Self {
-        Forward {
-            sink: Some(sink),
-            stream: Fuse::new(stream),
-            buffered_item: None,
-        }
+        Forward { sink: Some(sink), stream: Fuse::new(stream), buffered_item: None }
     }
 }
 
@@ -45,13 +41,8 @@ where
 {
     type Output = Result<(), E>;
 
-    #[project]
-    fn poll(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
-        #[project]
-        let Forward { mut sink, mut stream, buffered_item } = self.project();
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let ForwardProj { mut sink, mut stream, buffered_item } = self.project();
         let mut si = sink.as_mut().as_pin_mut().expect("polled `Forward` after completion");
 
         loop {
@@ -61,7 +52,7 @@ where
                 ready!(si.as_mut().poll_ready(cx))?;
                 si.as_mut().start_send(buffered_item.take().unwrap())?;
             }
-    
+
             match stream.as_mut().poll_next(cx)? {
                 Poll::Ready(Some(item)) => {
                     *buffered_item = Some(item);
@@ -69,11 +60,11 @@ where
                 Poll::Ready(None) => {
                     ready!(si.poll_close(cx))?;
                     sink.set(None);
-                    return Poll::Ready(Ok(()))
+                    return Poll::Ready(Ok(()));
                 }
                 Poll::Pending => {
                     ready!(si.poll_flush(cx))?;
-                    return Poll::Pending
+                    return Poll::Pending;
                 }
             }
         }

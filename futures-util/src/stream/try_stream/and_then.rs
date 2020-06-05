@@ -1,11 +1,11 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream, FusedStream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 /// Stream for the [`and_then`](super::TryStreamExt::and_then) method.
 #[pin_project]
@@ -32,9 +32,10 @@ where
 }
 
 impl<St, Fut, F> AndThen<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Error = St::Error>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self { stream, future: None, f }
@@ -44,27 +45,23 @@ impl<St, Fut, F> AndThen<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for AndThen<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Error = St::Error>,
 {
     type Item = Result<Fut::Ok, St::Error>;
 
-    #[project]
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        #[project]
-        let AndThen { mut stream, mut future, f } = self.project();
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut this = self.project();
 
         Poll::Ready(loop {
-            if let Some(fut) = future.as_mut().as_pin_mut() {
+            if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 let item = ready!(fut.try_poll(cx));
-                future.set(None);
+                this.future.set(None);
                 break Some(item);
-            } else if let Some(item) = ready!(stream.as_mut().try_poll_next(cx)?) {
-                future.set(Some(f(item)));
+            } else if let Some(item) = ready!(this.stream.as_mut().try_poll_next(cx)?) {
+                this.future.set(Some((this.f)(item)));
             } else {
                 break None;
             }
@@ -84,9 +81,10 @@ impl<St, Fut, F> Stream for AndThen<St, Fut, F>
 }
 
 impl<St, Fut, F> FusedStream for AndThen<St, Fut, F>
-    where St: TryStream + FusedStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Error = St::Error>,
+where
+    St: TryStream + FusedStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Error = St::Error>,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
@@ -96,7 +94,8 @@ impl<St, Fut, F> FusedStream for AndThen<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for AndThen<S, Fut, F>
-    where S: Sink<Item>,
+where
+    S: Sink<Item>,
 {
     type Error = S::Error;
 

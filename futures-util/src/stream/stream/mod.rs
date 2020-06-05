@@ -19,7 +19,7 @@ use futures_core::{
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
 
-use crate::fns::{InspectFn, inspect_fn};
+use crate::fns::{inspect_fn, InspectFn};
 
 mod chain;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
@@ -611,7 +611,7 @@ pub trait StreamExt: Stream {
         FlatMap::new(self, f)
     }
 
-    /// Combinator similar to [`StreamExt::fold`] that holds internal state 
+    /// Combinator similar to [`StreamExt::fold`] that holds internal state
     /// and produces a new stream.
     ///
     /// Accepts initial state and closure which will be applied to each element
@@ -1231,8 +1231,8 @@ pub trait StreamExt: Stream {
     /// This method will panic if `capacity` is zero.
     #[cfg(feature = "alloc")]
     fn ready_chunks(self, capacity: usize) -> ReadyChunks<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         ReadyChunks::new(self, capacity)
     }

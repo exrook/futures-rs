@@ -5,7 +5,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 struct StateFn<S, F> {
     state: S,
@@ -54,14 +54,7 @@ where
     Fut: Future<Output = Option<B>>,
 {
     pub(super) fn new(stream: St, initial_state: S, f: F) -> Scan<St, S, Fut, F> {
-        Scan {
-            stream,
-            state_f: Some(StateFn {
-                state: initial_state,
-                f,
-            }),
-            future: None,
-        }
+        Scan { stream, state_f: Some(StateFn { state: initial_state, f }), future: None }
     }
 
     delegate_access_inner!(stream, St, ());
@@ -75,28 +68,26 @@ where
 {
     type Item = B;
 
-    #[project]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<B>> {
         if self.is_done_taking() {
             return Poll::Ready(None);
         }
 
-        #[project]
-        let Scan { mut stream, state_f, mut future } = self.project();
+        let mut this = self.project();
 
         Poll::Ready(loop {
-            if let Some(fut) = future.as_mut().as_pin_mut() {
+            if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 let item = ready!(fut.poll(cx));
-                future.set(None);
+                this.future.set(None);
 
                 if item.is_none() {
-                    *state_f = None;
+                    *this.state_f = None;
                 }
 
                 break item;
-            } else if let Some(item) = ready!(stream.as_mut().poll_next(cx)) {
-                let state_f = state_f.as_mut().unwrap();
-                future.set(Some((state_f.f)(&mut state_f.state, item)))
+            } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
+                let state_f = this.state_f.as_mut().unwrap();
+                this.future.set(Some((state_f.f)(&mut state_f.state, item)))
             } else {
                 break None;
             }

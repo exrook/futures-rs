@@ -3,7 +3,7 @@ use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 /// Future for the [`for_each`](super::StreamExt::for_each) method.
 #[pin_project]
@@ -30,23 +30,21 @@ where
 }
 
 impl<St, Fut, F> ForEach<St, Fut, F>
-where St: Stream,
-      F: FnMut(St::Item) -> Fut,
-      Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future<Output = ()>,
 {
     pub(super) fn new(stream: St, f: F) -> ForEach<St, Fut, F> {
-        ForEach {
-            stream,
-            f,
-            future: None,
-        }
+        ForEach { stream, f, future: None }
     }
 }
 
 impl<St, Fut, F> FusedFuture for ForEach<St, Fut, F>
-    where St: FusedStream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = ()>,
+where
+    St: FusedStream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future<Output = ()>,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
@@ -54,22 +52,21 @@ impl<St, Fut, F> FusedFuture for ForEach<St, Fut, F>
 }
 
 impl<St, Fut, F> Future for ForEach<St, Fut, F>
-    where St: Stream,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future<Output = ()>,
+where
+    St: Stream,
+    F: FnMut(St::Item) -> Fut,
+    Fut: Future<Output = ()>,
 {
     type Output = ();
 
-    #[project]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        #[project]
-        let ForEach { mut stream, f, mut future } = self.project();
+        let mut this = self.project();
         loop {
-            if let Some(fut) = future.as_mut().as_pin_mut() {
+            if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 ready!(fut.poll(cx));
-                future.set(None);
-            } else if let Some(item) = ready!(stream.as_mut().poll_next(cx)) {
-                future.set(Some(f(item)));
+                this.future.set(None);
+            } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
+                this.future.set(Some((this.f)(item)));
             } else {
                 break;
             }
