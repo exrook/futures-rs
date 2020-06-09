@@ -3,7 +3,7 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
 ///
@@ -45,14 +45,11 @@ use pin_project::{pin_project, project};
 /// # });
 /// ```
 pub fn unfold<T, F, Fut, Item>(init: T, f: F) -> Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
-    Unfold {
-        f,
-        state: Some(init),
-        fut: None,
-    }
+    Unfold { f, state: Some(init), fut: None }
 }
 
 /// Stream for the [`unfold`] function.
@@ -71,16 +68,14 @@ where
     Fut: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Unfold")
-            .field("state", &self.state)
-            .field("fut", &self.fut)
-            .finish()
+        f.debug_struct("Unfold").field("state", &self.state).field("fut", &self.fut).finish()
     }
 }
 
 impl<T, F, Fut, Item> FusedStream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
     fn is_terminated(&self) -> bool {
         self.state.is_none() && self.fut.is_none()
@@ -88,29 +83,29 @@ impl<T, F, Fut, Item> FusedStream for Unfold<T, F, Fut>
 }
 
 impl<T, F, Fut, Item> Stream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(Item, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(Item, T)>>,
 {
     type Item = Item;
 
-    #[project]
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        #[project]
-        let Unfold { state, f, mut fut } = self.project();
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut this = self.project();
 
-        if let Some(state) = state.take() {
-            fut.set(Some(f(state)));
+        if let Some(state) = this.state.take() {
+            this.fut.set(Some((this.f)(state)));
         }
 
-        let step = ready!(fut.as_mut().as_pin_mut()
-            .expect("Unfold must not be polled after it returned `Poll::Ready(None)`").poll(cx));
-        fut.set(None);
+        let step = ready!(this
+            .fut
+            .as_mut()
+            .as_pin_mut()
+            .expect("Unfold must not be polled after it returned `Poll::Ready(None)`")
+            .poll(cx));
+        this.fut.set(None);
 
         if let Some((item, next_state)) = step {
-            *state = Some(next_state);
+            *this.state = Some(next_state);
             Poll::Ready(Some(item))
         } else {
             Poll::Ready(None)

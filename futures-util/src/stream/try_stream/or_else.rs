@@ -1,11 +1,11 @@
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::stream::{Stream, TryStream, FusedStream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 /// Stream for the [`or_else`](super::TryStreamExt::or_else) method.
 #[pin_project]
@@ -32,9 +32,10 @@ where
 }
 
 impl<St, Fut, F> OrElse<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Error) -> Fut,
-          Fut: TryFuture<Ok = St::Ok>,
+where
+    St: TryStream,
+    F: FnMut(St::Error) -> Fut,
+    Fut: TryFuture<Ok = St::Ok>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self { stream, future: None, f }
@@ -44,31 +45,27 @@ impl<St, Fut, F> OrElse<St, Fut, F>
 }
 
 impl<St, Fut, F> Stream for OrElse<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Error) -> Fut,
-          Fut: TryFuture<Ok = St::Ok>,
+where
+    St: TryStream,
+    F: FnMut(St::Error) -> Fut,
+    Fut: TryFuture<Ok = St::Ok>,
 {
     type Item = Result<St::Ok, Fut::Error>;
 
-    #[project]
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        #[project]
-        let OrElse { mut stream, mut future, f } = self.project();
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut this = self.project();
 
         Poll::Ready(loop {
-            if let Some(fut) = future.as_mut().as_pin_mut() {
+            if let Some(fut) = this.future.as_mut().as_pin_mut() {
                 let item = ready!(fut.try_poll(cx));
-                future.set(None);
+                this.future.set(None);
                 break Some(item);
             } else {
-                match ready!(stream.as_mut().try_poll_next(cx)) {
+                match ready!(this.stream.as_mut().try_poll_next(cx)) {
                     Some(Ok(item)) => break Some(Ok(item)),
                     Some(Err(e)) => {
-                        future.set(Some(f(e)));
-                    },
+                        this.future.set(Some((this.f)(e)));
+                    }
                     None => break None,
                 }
             }
@@ -88,9 +85,10 @@ impl<St, Fut, F> Stream for OrElse<St, Fut, F>
 }
 
 impl<St, Fut, F> FusedStream for OrElse<St, Fut, F>
-    where St: TryStream + FusedStream,
-          F: FnMut(St::Error) -> Fut,
-          Fut: TryFuture<Ok = St::Ok>,
+where
+    St: TryStream + FusedStream,
+    F: FnMut(St::Error) -> Fut,
+    Fut: TryFuture<Ok = St::Ok>,
 {
     fn is_terminated(&self) -> bool {
         self.future.is_none() && self.stream.is_terminated()
@@ -100,7 +98,8 @@ impl<St, Fut, F> FusedStream for OrElse<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for OrElse<S, Fut, F>
-    where S: Sink<Item>,
+where
+    S: Sink<Item>,
 {
     type Error = S::Error;
 

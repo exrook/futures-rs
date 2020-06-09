@@ -81,10 +81,7 @@ impl<Fut: Future> Shared<Fut> {
             }),
         };
 
-        Shared {
-            inner: Some(Arc::new(inner)),
-            waker_key: NULL_WAKER_KEY,
-        }
+        Shared { inner: Some(Arc::new(inner)), waker_key: NULL_WAKER_KEY }
     }
 }
 
@@ -178,10 +175,7 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
 
-        let inner = this
-            .inner
-            .take()
-            .expect("Shared future polled again after completion");
+        let inner = this.inner.take().expect("Shared future polled again after completion");
 
         // Fast path for when the wrapped future has already completed
         if inner.notifier.state.load(Acquire) == COMPLETE {
@@ -278,10 +272,7 @@ where
     Fut: Future,
 {
     fn clone(&self) -> Self {
-        Shared {
-            inner: self.inner.clone(),
-            waker_key: NULL_WAKER_KEY,
-        }
+        Shared { inner: self.inner.clone(), waker_key: NULL_WAKER_KEY }
     }
 }
 

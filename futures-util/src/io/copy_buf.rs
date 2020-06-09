@@ -1,9 +1,9 @@
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use futures_io::{AsyncBufRead, AsyncWrite};
+use pin_project::pin_project;
 use std::io;
 use std::pin::Pin;
-use pin_project::{pin_project, project};
 
 /// Creates a future which copies all the bytes from one object to another.
 ///
@@ -35,11 +35,7 @@ where
     R: AsyncBufRead,
     W: AsyncWrite + Unpin + ?Sized,
 {
-    CopyBuf {
-        reader,
-        writer,
-        amt: 0,
-    }
+    CopyBuf { reader, writer, amt: 0 }
 }
 
 /// Future for the [`copy_buf()`] function.
@@ -54,28 +50,27 @@ pub struct CopyBuf<'a, R, W: ?Sized> {
 }
 
 impl<R, W> Future for CopyBuf<'_, R, W>
-    where R: AsyncBufRead,
-          W: AsyncWrite + Unpin + ?Sized,
+where
+    R: AsyncBufRead,
+    W: AsyncWrite + Unpin + ?Sized,
 {
     type Output = io::Result<u64>;
 
-    #[project]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        #[project]
-        let CopyBuf { mut reader, mut writer, amt } = self.project();
+        let mut this = self.project();
         loop {
-            let buffer = ready!(reader.as_mut().poll_fill_buf(cx))?;
+            let buffer = ready!(this.reader.as_mut().poll_fill_buf(cx))?;
             if buffer.is_empty() {
-                ready!(Pin::new(&mut writer).poll_flush(cx))?;
-                return Poll::Ready(Ok(*amt));
+                ready!(Pin::new(&mut this.writer).poll_flush(cx))?;
+                return Poll::Ready(Ok(*this.amt));
             }
 
-            let i = ready!(Pin::new(&mut writer).poll_write(cx, buffer))?;
+            let i = ready!(Pin::new(&mut this.writer).poll_write(cx, buffer))?;
             if i == 0 {
-                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
+                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
             }
-            *amt += i as u64;
-            reader.as_mut().consume(i);
+            *this.amt += i as u64;
+            this.reader.as_mut().consume(i);
         }
     }
 }

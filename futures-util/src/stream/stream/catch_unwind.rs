@@ -1,9 +1,9 @@
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 use std::any::Any;
+use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
 use std::pin::Pin;
-use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
 /// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) method.
 #[pin_project]
@@ -26,27 +26,20 @@ impl<St: Stream + UnwindSafe> CatchUnwind<St> {
 impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St> {
     type Item = Result<St::Item, Box<dyn Any + Send>>;
 
-    #[project]
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        #[project]
-        let CatchUnwind { stream, caught_unwind } = self.project();
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut this = self.project();
 
-        if *caught_unwind {
+        if *this.caught_unwind {
             Poll::Ready(None)
         } else {
-            let res = catch_unwind(AssertUnwindSafe(|| {
-                stream.poll_next(cx)
-            }));
+            let res = catch_unwind(AssertUnwindSafe(|| this.stream.as_mut().poll_next(cx)));
 
             match res {
                 Ok(poll) => poll.map(|opt| opt.map(Ok)),
                 Err(e) => {
-                    *caught_unwind = true;
+                    *this.caught_unwind = true;
                     Poll::Ready(Some(Err(e)))
-                },
+                }
             }
         }
     }

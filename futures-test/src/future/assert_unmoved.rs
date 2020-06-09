@@ -24,10 +24,7 @@ unsafe impl<Fut: Sync> Sync for AssertUnmoved<Fut> {}
 
 impl<Fut> AssertUnmoved<Fut> {
     pub(super) fn new(future: Fut) -> Self {
-        Self {
-            future,
-            this_ptr: ptr::null(),
-        }
+        Self { future, this_ptr: ptr::null() }
     }
 }
 

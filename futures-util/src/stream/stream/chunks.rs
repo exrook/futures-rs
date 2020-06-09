@@ -1,12 +1,12 @@
 use crate::stream::Fuse;
-use futures_core::stream::{Stream, FusedStream};
+use alloc::vec::Vec;
+use core::mem;
+use core::pin::Pin;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::{pin_project, project};
-use core::mem;
-use core::pin::Pin;
-use alloc::vec::Vec;
+use pin_project::pin_project;
 
 /// Stream for the [`chunks`](super::StreamExt::chunks) method.
 #[pin_project]
@@ -19,7 +19,10 @@ pub struct Chunks<St: Stream> {
     cap: usize, // https://github.com/rust-lang/futures-rs/issues/1475
 }
 
-impl<St: Stream> Chunks<St> where St: Stream {
+impl<St: Stream> Chunks<St>
+where
+    St: Stream,
+{
     pub(super) fn new(stream: St, capacity: usize) -> Chunks<St> {
         assert!(capacity > 0);
 
@@ -41,32 +44,27 @@ impl<St: Stream> Chunks<St> where St: Stream {
 impl<St: Stream> Stream for Chunks<St> {
     type Item = Vec<St::Item>;
 
-    #[project]
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        #[project]
-        let Chunks { mut stream, items, cap } = self.as_mut().project();
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut this = self.as_mut().project();
         loop {
-            match ready!(stream.as_mut().poll_next(cx)) {
+            match ready!(this.stream.as_mut().poll_next(cx)) {
                 // Push the item into the buffer and check whether it is full.
                 // If so, replace our buffer with a new and empty one and return
                 // the full one.
                 Some(item) => {
-                    items.push(item);
-                    if items.len() >= *cap {
-                        return Poll::Ready(Some(self.take()))
+                    this.items.push(item);
+                    if this.items.len() >= *this.cap {
+                        return Poll::Ready(Some(self.take()));
                     }
                 }
 
                 // Since the underlying stream ran out of values, return what we
                 // have buffered, if we have anything.
                 None => {
-                    let last = if items.is_empty() {
+                    let last = if this.items.is_empty() {
                         None
                     } else {
-                        let full_buf = mem::replace(items, Vec::new());
+                        let full_buf = mem::replace(this.items, Vec::new());
                         Some(full_buf)
                     };
 

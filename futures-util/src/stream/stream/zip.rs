@@ -1,9 +1,9 @@
-use crate::stream::{StreamExt, Fuse};
+use crate::stream::{Fuse, StreamExt};
 use core::cmp;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 /// Stream for the [`zip`](super::StreamExt::zip) method.
 #[pin_project]
@@ -20,12 +20,7 @@ pub struct Zip<St1: Stream, St2: Stream> {
 
 impl<St1: Stream, St2: Stream> Zip<St1, St2> {
     pub(super) fn new(stream1: St1, stream2: St2) -> Zip<St1, St2> {
-        Zip {
-            stream1: stream1.fuse(),
-            stream2: stream2.fuse(),
-            queued1: None,
-            queued2: None,
-        }
+        Zip { stream1: stream1.fuse(), stream2: stream2.fuse(), queued1: None, queued2: None }
     }
 
     /// Acquires a reference to the underlying streams that this combinator is
@@ -63,7 +58,9 @@ impl<St1: Stream, St2: Stream> Zip<St1, St2> {
 }
 
 impl<St1, St2> FusedStream for Zip<St1, St2>
-    where St1: Stream, St2: Stream,
+where
+    St1: Stream,
+    St2: Stream,
 {
     fn is_terminated(&self) -> bool {
         self.stream1.is_terminated() && self.stream2.is_terminated()
@@ -71,35 +68,32 @@ impl<St1, St2> FusedStream for Zip<St1, St2>
 }
 
 impl<St1, St2> Stream for Zip<St1, St2>
-    where St1: Stream, St2: Stream
+where
+    St1: Stream,
+    St2: Stream,
 {
     type Item = (St1::Item, St2::Item);
 
-    #[project]
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        #[project]
-        let Zip { mut stream1, mut stream2, queued1, queued2 } = self.project();
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut this = self.project();
 
-        if queued1.is_none() {
-            match stream1.as_mut().poll_next(cx) {
-                Poll::Ready(Some(item1)) => *queued1 = Some(item1),
+        if this.queued1.is_none() {
+            match this.stream1.as_mut().poll_next(cx) {
+                Poll::Ready(Some(item1)) => *this.queued1 = Some(item1),
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
-        if queued2.is_none() {
-            match stream2.as_mut().poll_next(cx) {
-                Poll::Ready(Some(item2)) => *queued2 = Some(item2),
+        if this.queued2.is_none() {
+            match this.stream2.as_mut().poll_next(cx) {
+                Poll::Ready(Some(item2)) => *this.queued2 = Some(item2),
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
 
-        if queued1.is_some() && queued2.is_some() {
-            let pair = (queued1.take().unwrap(), queued2.take().unwrap());
+        if this.queued1.is_some() && this.queued2.is_some() {
+            let pair = (this.queued1.take().unwrap(), this.queued2.take().unwrap());
             Poll::Ready(Some(pair))
-        } else if stream1.is_done() || stream2.is_done() {
+        } else if this.stream1.is_done() || this.stream2.is_done() {
             Poll::Ready(None)
         } else {
             Poll::Pending
@@ -125,7 +119,7 @@ impl<St1, St2> Stream for Zip<St1, St2>
             }
             (Some(x), None) => x.checked_add(queued1_len),
             (None, Some(y)) => y.checked_add(queued2_len),
-            (None, None) => None
+            (None, None) => None,
         };
 
         (lower, upper)

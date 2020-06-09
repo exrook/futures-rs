@@ -1,8 +1,8 @@
 use core::pin::Pin;
-use futures_core::future::{Future, FusedFuture};
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::future::{FusedFuture, Future};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 
 /// Future for the [`concat`](super::StreamExt::concat) method.
 #[pin_project]
@@ -15,42 +15,33 @@ pub struct Concat<St: Stream> {
 }
 
 impl<St> Concat<St>
-where St: Stream,
-      St::Item: Extend<<St::Item as IntoIterator>::Item> +
-                IntoIterator + Default,
+where
+    St: Stream,
+    St::Item: Extend<<St::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
     pub(super) fn new(stream: St) -> Concat<St> {
-        Concat {
-            stream,
-            accum: None,
-        }
+        Concat { stream, accum: None }
     }
 }
 
 impl<St> Future for Concat<St>
-where St: Stream,
-      St::Item: Extend<<St::Item as IntoIterator>::Item> +
-                IntoIterator + Default,
+where
+    St: Stream,
+    St::Item: Extend<<St::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
     type Output = St::Item;
 
-    #[project]
-    fn poll(
-        self: Pin<&mut Self>, cx: &mut Context<'_>
-    ) -> Poll<Self::Output> {
-        #[project]
-        let Concat { mut stream, accum } = self.project();
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut this = self.project();
 
         loop {
-            match ready!(stream.as_mut().poll_next(cx)) {
-                None => {
-                    return Poll::Ready(accum.take().unwrap_or_default())
-                }
+            match ready!(this.stream.as_mut().poll_next(cx)) {
+                None => return Poll::Ready(this.accum.take().unwrap_or_default()),
                 Some(e) => {
-                    if let Some(a) = accum {
+                    if let Some(a) = this.accum {
                         a.extend(e)
                     } else {
-                        *accum = Some(e)
+                        *this.accum = Some(e)
                     }
                 }
             }
@@ -59,9 +50,9 @@ where St: Stream,
 }
 
 impl<St> FusedFuture for Concat<St>
-where St: FusedStream,
-      St::Item: Extend<<St::Item as IntoIterator>::Item> +
-                IntoIterator + Default,
+where
+    St: FusedStream,
+    St::Item: Extend<<St::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
     fn is_terminated(&self) -> bool {
         self.accum.is_none() && self.stream.is_terminated()

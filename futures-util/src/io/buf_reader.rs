@@ -1,12 +1,12 @@
+use super::DEFAULT_BUF_SIZE;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
 use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, IoSliceMut, SeekFrom};
-use pin_project::{pin_project, project};
+use pin_project::pin_project;
 use std::io::{self, Read};
 use std::pin::Pin;
 use std::{cmp, fmt};
-use super::DEFAULT_BUF_SIZE;
 
 /// The `BufReader` struct adds buffering to any reader.
 ///
@@ -49,12 +49,7 @@ impl<R: AsyncRead> BufReader<R> {
             let mut buffer = Vec::with_capacity(capacity);
             buffer.set_len(capacity);
             super::initialize(&inner, &mut buffer);
-            Self {
-                inner,
-                buffer: buffer.into_boxed_slice(),
-                pos: 0,
-                cap: 0,
-            }
+            Self { inner, buffer: buffer.into_boxed_slice(), pos: 0, cap: 0 }
         }
     }
 
@@ -68,13 +63,11 @@ impl<R: AsyncRead> BufReader<R> {
     }
 
     /// Invalidates all data in the internal buffer.
-    #[project]
     #[inline]
     fn discard_buffer(self: Pin<&mut Self>) {
-        #[project]
-        let BufReader { pos, cap, .. } = self.project();
-        *pos = 0;
-        *cap = 0;
+        let this = self.project();
+        *this.pos = 0;
+        *this.cap = 0;
     }
 }
 
@@ -123,24 +116,19 @@ impl<R: AsyncRead> AsyncRead for BufReader<R> {
 }
 
 impl<R: AsyncRead> AsyncBufRead for BufReader<R> {
-    #[project]
-    fn poll_fill_buf(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<&[u8]>> {
-        #[project]
-        let BufReader { inner, buffer, cap, pos } = self.project();
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
+        let this = self.project();
 
         // If we've reached the end of our internal buffer then we need to fetch
         // some more data from the underlying reader.
         // Branch using `>=` instead of the more correct `==`
         // to tell the compiler that the pos..cap slice is always valid.
-        if *pos >= *cap {
-            debug_assert!(*pos == *cap);
-            *cap = ready!(inner.poll_read(cx, buffer))?;
-            *pos = 0;
+        if *this.pos >= *this.cap {
+            debug_assert!(*this.pos == *this.cap);
+            *this.cap = ready!(this.inner.poll_read(cx, this.buffer))?;
+            *this.pos = 0;
         }
-        Poll::Ready(Ok(&buffer[*pos..*cap]))
+        Poll::Ready(Ok(&this.buffer[*this.pos..*this.cap]))
     }
 
     fn consume(self: Pin<&mut Self>, amt: usize) {
@@ -194,7 +182,8 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for BufReader<R> {
             // support seeking by i64::min_value() so we need to handle underflow when subtracting
             // remainder.
             if let Some(offset) = n.checked_sub(remainder) {
-                result = ready!(self.as_mut().project().inner.poll_seek(cx, SeekFrom::Current(offset)))?;
+                result =
+                    ready!(self.as_mut().project().inner.poll_seek(cx, SeekFrom::Current(offset)))?;
             } else {
                 // seek backwards by our remainder, and then by the offset
                 ready!(self.as_mut().project().inner.poll_seek(cx, SeekFrom::Current(-remainder)))?;

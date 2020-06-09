@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
@@ -5,14 +6,14 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
-use pin_project::{pin_project, project};
-use crate::fns::FnMut1;
+use pin_project::pin_project;
 
 /// Stream for the [`filter`](super::StreamExt::filter) method.
 #[pin_project]
 #[must_use = "streams do nothing unless polled"]
 pub struct Filter<St, Fut, F>
-    where St: Stream,
+where
+    St: Stream,
 {
     #[pin]
     stream: St,
@@ -39,26 +40,23 @@ where
 
 #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Filter<St, Fut, F>
-where St: Stream,
-      F: for<'a> FnMut1<&'a St::Item, Output=Fut>,
-      Fut: Future<Output = bool>,
+where
+    St: Stream,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
+    Fut: Future<Output = bool>,
 {
     pub(super) fn new(stream: St, f: F) -> Filter<St, Fut, F> {
-        Filter {
-            stream,
-            f,
-            pending_fut: None,
-            pending_item: None,
-        }
+        Filter { stream, f, pending_fut: None, pending_item: None }
     }
 
     delegate_access_inner!(stream, St, ());
 }
 
 impl<St, Fut, F> FusedStream for Filter<St, Fut, F>
-    where St: Stream + FusedStream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    St: Stream + FusedStream,
+    F: FnMut(&St::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
     fn is_terminated(&self) -> bool {
         self.pending_fut.is_none() && self.stream.is_terminated()
@@ -67,30 +65,26 @@ impl<St, Fut, F> FusedStream for Filter<St, Fut, F>
 
 #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Stream for Filter<St, Fut, F>
-    where St: Stream,
-          F: for<'a> FnMut1<&'a St::Item, Output=Fut>,
-          Fut: Future<Output = bool>,
+where
+    St: Stream,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
+    Fut: Future<Output = bool>,
 {
     type Item = St::Item;
 
-    #[project]
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<St::Item>> {
-        #[project]
-        let Filter { mut stream, f, mut pending_fut, pending_item } = self.project();
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
+        let mut this = self.project();
         Poll::Ready(loop {
-            if let Some(fut) = pending_fut.as_mut().as_pin_mut() {
+            if let Some(fut) = this.pending_fut.as_mut().as_pin_mut() {
                 let res = ready!(fut.poll(cx));
-                pending_fut.set(None);
+                this.pending_fut.set(None);
                 if res {
-                    break pending_item.take();
+                    break this.pending_item.take();
                 }
-                *pending_item = None;
-            } else if let Some(item) = ready!(stream.as_mut().poll_next(cx)) {
-                pending_fut.set(Some(f.call_mut(&item)));
-                *pending_item = Some(item);
+                *this.pending_item = None;
+            } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
+                this.pending_fut.set(Some(this.f.call_mut(&item)));
+                *this.pending_item = Some(item);
             } else {
                 break None;
             }
@@ -111,9 +105,10 @@ impl<St, Fut, F> Stream for Filter<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for Filter<S, Fut, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(&S::Item) -> Fut,
-          Fut: Future<Output = bool>,
+where
+    S: Stream + Sink<Item>,
+    F: FnMut(&S::Item) -> Fut,
+    Fut: Future<Output = bool>,
 {
     type Error = S::Error;
 

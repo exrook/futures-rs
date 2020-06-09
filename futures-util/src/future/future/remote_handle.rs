@@ -1,22 +1,22 @@
 use {
     crate::future::{CatchUnwind, FutureExt},
-    futures_channel::oneshot::{self, Sender, Receiver},
+    futures_channel::oneshot::{self, Receiver, Sender},
     futures_core::{
         future::Future,
         task::{Context, Poll},
     },
+    pin_project::pin_project,
     std::{
         any::Any,
         fmt,
         panic::{self, AssertUnwindSafe},
         pin::Pin,
         sync::{
-            Arc,
             atomic::{AtomicBool, Ordering},
+            Arc,
         },
         thread,
     },
-    pin_project::{pin_project, project},
 };
 
 /// The handle to a remote future returned by
@@ -81,32 +81,28 @@ pub struct Remote<Fut: Future> {
 
 impl<Fut: Future + fmt::Debug> fmt::Debug for Remote<Fut> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Remote")
-            .field(&self.future)
-            .finish()
+        f.debug_tuple("Remote").field(&self.future).finish()
     }
 }
 
 impl<Fut: Future> Future for Remote<Fut> {
     type Output = ();
 
-    #[project]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        #[project]
-        let Remote { tx, keep_running, future } = self.project();
+        let this = self.project();
 
-        if let Poll::Ready(_) = tx.as_mut().unwrap().poll_canceled(cx) {
-            if !keep_running.load(Ordering::SeqCst) {
+        if let Poll::Ready(_) = this.tx.as_mut().unwrap().poll_canceled(cx) {
+            if !this.keep_running.load(Ordering::SeqCst) {
                 // Cancelled, bail out
-                return Poll::Ready(())
+                return Poll::Ready(());
             }
         }
 
-        let output = ready!(future.poll(cx));
+        let output = ready!(this.future.poll(cx));
 
         // if the receiving end has gone away then that's ok, we just ignore the
         // send error here.
-        drop(tx.take().unwrap().send(output));
+        drop(this.tx.take().unwrap().send(output));
         Poll::Ready(())
     }
 }
