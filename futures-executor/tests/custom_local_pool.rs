@@ -1,7 +1,7 @@
 use futures::channel::oneshot;
-use futures::executor::LocalPool;
+use futures::executor::custom_local_pool::LocalPool;
 use futures::future::{self, lazy, poll_fn, Future};
-use futures::task::{Context, LocalSpawn, Poll, Spawn, Waker};
+use futures::task::{Context, LocalSpawn, Poll, Waker};
 use std::cell::{Cell, RefCell};
 use std::pin::Pin;
 use std::rc::Rc;
@@ -29,7 +29,7 @@ fn run_until_single_future() {
     let mut cnt = 0;
 
     {
-        let mut pool = LocalPool::new();
+        let mut pool = LocalPool::new(|| {}, || {});
         let fut = lazy(|_| {
             cnt += 1;
         });
@@ -41,7 +41,7 @@ fn run_until_single_future() {
 
 #[test]
 fn run_until_ignores_spawned() {
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
     spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
     pool.run_until(lazy(|_| ()));
@@ -50,7 +50,7 @@ fn run_until_ignores_spawned() {
 #[test]
 fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
     spawn
         .spawn_local_obj(
@@ -65,7 +65,7 @@ fn run_until_executes_spawned() {
 
 #[test]
 fn run_returns_if_empty() {
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     pool.run();
     pool.run();
 }
@@ -75,7 +75,7 @@ fn run_executes_spawned() {
     let cnt = Rc::new(Cell::new(0));
     let cnt2 = cnt.clone();
 
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
     let spawn2 = pool.spawner();
 
@@ -106,7 +106,7 @@ fn run_spawn_many() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
 
     for _ in 0..ITER {
@@ -128,7 +128,7 @@ fn run_spawn_many() {
 
 #[test]
 fn try_run_one_returns_if_empty() {
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     assert!(!pool.try_run_one());
 }
 
@@ -138,7 +138,7 @@ fn try_run_one_executes_one_ready() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
 
     for _ in 0..ITER {
@@ -171,7 +171,7 @@ fn try_run_one_returns_on_no_progress() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
 
     let waker: Rc<Cell<Option<Waker>>> = Rc::new(Cell::new(None));
@@ -208,7 +208,7 @@ fn try_run_one_returns_on_no_progress() {
 
 #[test]
 fn try_run_one_runs_sub_futures() {
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
     let cnt = Rc::new(Cell::new(0));
 
@@ -236,14 +236,14 @@ fn try_run_one_runs_sub_futures() {
 
 #[test]
 fn run_until_stalled_returns_if_empty() {
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     pool.run_until_stalled();
     pool.run_until_stalled();
 }
 
 #[test]
 fn run_until_stalled_returns_multiple_times() {
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
     let cnt = Rc::new(Cell::new(0));
 
@@ -260,7 +260,7 @@ fn run_until_stalled_returns_multiple_times() {
 
 #[test]
 fn run_until_stalled_runs_spawned_sub_futures() {
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
     let cnt = Rc::new(Cell::new(0));
 
@@ -293,7 +293,7 @@ fn run_until_stalled_executes_all_ready() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
 
     for i in 0..ITER {
@@ -317,44 +317,6 @@ fn run_until_stalled_executes_all_ready() {
         pool.run_until_stalled();
         assert_eq!(cnt.get(), (i + 1) * PER_ITER);
     }
-}
-
-#[test]
-#[should_panic]
-fn nesting_run() {
-    let mut pool = LocalPool::new();
-    let spawn = pool.spawner();
-
-    spawn
-        .spawn_obj(
-            Box::pin(lazy(|_| {
-                let mut pool = LocalPool::new();
-                pool.run();
-            }))
-            .into(),
-        )
-        .unwrap();
-
-    pool.run();
-}
-
-#[test]
-#[should_panic]
-fn nesting_run_run_until_stalled() {
-    let mut pool = LocalPool::new();
-    let spawn = pool.spawner();
-
-    spawn
-        .spawn_obj(
-            Box::pin(lazy(|_| {
-                let mut pool = LocalPool::new();
-                pool.run_until_stalled();
-            }))
-            .into(),
-        )
-        .unwrap();
-
-    pool.run();
 }
 
 #[test]
@@ -393,7 +355,7 @@ fn tasks_are_scheduled_fairly() {
         }
     }
 
-    let mut pool = LocalPool::new();
+    let mut pool = LocalPool::new(|| {}, || {});
     let spawn = pool.spawner();
 
     spawn.spawn_local_obj(Box::pin(Spin { state: state.clone(), idx: 0 }).into()).unwrap();

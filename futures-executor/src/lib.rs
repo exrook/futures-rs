@@ -11,6 +11,9 @@
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 #![doc(html_root_url = "https://docs.rs/futures-executor/0.3.5")]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 #[cfg(feature = "std")]
 mod local_pool;
 #[cfg(feature = "std")]
@@ -30,3 +33,6 @@ pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
 mod enter;
 #[cfg(feature = "std")]
 pub use crate::enter::{enter, Enter, EnterError};
+
+#[cfg(feature = "alloc")]
+pub mod custom_local_pool;
