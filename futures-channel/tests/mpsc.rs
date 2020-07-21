@@ -425,7 +425,7 @@ fn stress_poll_ready() {
 #[test]
 fn try_send_1() {
     const N: usize = 3000;
-    let (mut tx, rx) = mpsc::channel(0);
+    let (tx, rx) = mpsc::channel(0);
 
     let t = thread::spawn(move || {
         for i in 0..N {
@@ -474,7 +474,7 @@ fn try_send_2() {
 
 #[test]
 fn try_send_fail() {
-    let (mut tx, rx) = mpsc::channel(0);
+    let (tx, rx) = mpsc::channel(0);
     let mut rx = block_on_stream(rx);
 
     tx.try_send("hello").unwrap();
@@ -493,7 +493,7 @@ fn try_send_fail() {
 
 #[test]
 fn try_send_recv() {
-    let (mut tx, mut rx) = mpsc::channel(1);
+    let (tx, mut rx) = mpsc::channel(1);
     tx.try_send("hello").unwrap();
     tx.try_send("hello").unwrap();
     tx.try_send("hello").unwrap_err(); // should be full
