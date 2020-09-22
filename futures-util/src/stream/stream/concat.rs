@@ -1,6 +1,6 @@
 use core::pin::Pin;
-use futures_core::future::{Future, FusedFuture};
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::future::{FusedFuture, Future};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_project::pin_project;
 
@@ -15,35 +15,28 @@ pub struct Concat<St: Stream> {
 }
 
 impl<St> Concat<St>
-where St: Stream,
-      St::Item: Extend<<St::Item as IntoIterator>::Item> +
-                IntoIterator + Default,
+where
+    St: Stream,
+    St::Item: Extend<<St::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
     pub(super) fn new(stream: St) -> Concat<St> {
-        Concat {
-            stream,
-            accum: None,
-        }
+        Concat { stream, accum: None }
     }
 }
 
 impl<St> Future for Concat<St>
-where St: Stream,
-      St::Item: Extend<<St::Item as IntoIterator>::Item> +
-                IntoIterator + Default,
+where
+    St: Stream,
+    St::Item: Extend<<St::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
     type Output = St::Item;
 
-    fn poll(
-        self: Pin<&mut Self>, cx: &mut Context<'_>
-    ) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.project();
 
         loop {
             match ready!(this.stream.as_mut().poll_next(cx)) {
-                None => {
-                    return Poll::Ready(this.accum.take().unwrap_or_default())
-                }
+                None => return Poll::Ready(this.accum.take().unwrap_or_default()),
                 Some(e) => {
                     if let Some(a) = this.accum {
                         a.extend(e)
@@ -57,9 +50,9 @@ where St: Stream,
 }
 
 impl<St> FusedFuture for Concat<St>
-where St: FusedStream,
-      St::Item: Extend<<St::Item as IntoIterator>::Item> +
-                IntoIterator + Default,
+where
+    St: FusedStream,
+    St::Item: Extend<<St::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
     fn is_terminated(&self) -> bool {
         self.accum.is_none() && self.stream.is_terminated()

@@ -44,12 +44,12 @@ impl<Fut: TryFuture> TryMaybeDone<Fut> {
     #[inline]
     pub fn take_output(self: Pin<&mut Self>) -> Option<Fut::Ok> {
         match &*self {
-            TryMaybeDone::Done(_) => {},
+            TryMaybeDone::Done(_) => {}
             TryMaybeDone::Future(_) | TryMaybeDone::Gone => return None,
         }
         match self.project_replace(TryMaybeDone::Gone) {
             TryMaybeDoneProjOwn::Done(output) => Some(output),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -68,16 +68,14 @@ impl<Fut: TryFuture> Future for TryMaybeDone<Fut> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match self.as_mut().project() {
-            TryMaybeDoneProj::Future(f) => {
-                match ready!(f.try_poll(cx)) {
-                    Ok(res) => self.set(TryMaybeDone::Done(res)),
-                    Err(e) => {
-                        self.set(TryMaybeDone::Gone);
-                        return Poll::Ready(Err(e));
-                    }
+            TryMaybeDoneProj::Future(f) => match ready!(f.try_poll(cx)) {
+                Ok(res) => self.set(TryMaybeDone::Done(res)),
+                Err(e) => {
+                    self.set(TryMaybeDone::Gone);
+                    return Poll::Ready(Err(e));
                 }
             },
-            TryMaybeDoneProj::Done(_) => {},
+            TryMaybeDoneProj::Done(_) => {}
             TryMaybeDoneProj::Gone => panic!("TryMaybeDone polled after value taken"),
         }
         Poll::Ready(Ok(()))

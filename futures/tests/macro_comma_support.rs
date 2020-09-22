@@ -1,12 +1,7 @@
 #[cfg(feature = "executor")]
 #[test]
 fn ready() {
-    use futures::{
-        executor::block_on,
-        future,
-        task::Poll,
-        ready,
-    };
+    use futures::{executor::block_on, future, ready, task::Poll};
 
     block_on(future::poll_fn(|_| {
         ready!(Poll::Ready(()),);
@@ -17,11 +12,7 @@ fn ready() {
 #[cfg(all(feature = "executor", feature = "async-await"))]
 #[test]
 fn poll() {
-    use futures::{
-        executor::block_on,
-        future::FutureExt,
-        poll,
-    };
+    use futures::{executor::block_on, future::FutureExt, poll};
 
     block_on(async {
         let _ = poll!(async {}.boxed(),);
@@ -31,10 +22,7 @@ fn poll() {
 #[cfg(all(feature = "executor", feature = "async-await"))]
 #[test]
 fn join() {
-    use futures::{
-        executor::block_on,
-        join
-    };
+    use futures::{executor::block_on, join};
 
     block_on(async {
         let future1 = async { 1 };
@@ -46,11 +34,7 @@ fn join() {
 #[cfg(all(feature = "executor", feature = "async-await"))]
 #[test]
 fn try_join() {
-    use futures::{
-        executor::block_on,
-        future::FutureExt,
-        try_join,
-    };
+    use futures::{executor::block_on, future::FutureExt, try_join};
 
     block_on(async {
         let future1 = async { 1 }.never_error();

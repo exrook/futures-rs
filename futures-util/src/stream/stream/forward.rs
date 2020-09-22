@@ -20,11 +20,7 @@ pub struct Forward<St, Si, Item> {
 
 impl<St, Si, Item> Forward<St, Si, Item> {
     pub(crate) fn new(stream: St, sink: Si) -> Self {
-        Forward {
-            sink: Some(sink),
-            stream: Fuse::new(stream),
-            buffered_item: None,
-        }
+        Forward { sink: Some(sink), stream: Fuse::new(stream), buffered_item: None }
     }
 }
 
@@ -45,10 +41,7 @@ where
 {
     type Output = Result<(), E>;
 
-    fn poll(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let ForwardProj { mut sink, mut stream, buffered_item } = self.project();
         let mut si = sink.as_mut().as_pin_mut().expect("polled `Forward` after completion");
 
@@ -67,11 +60,11 @@ where
                 Poll::Ready(None) => {
                     ready!(si.poll_close(cx))?;
                     sink.set(None);
-                    return Poll::Ready(Ok(()))
+                    return Poll::Ready(Ok(()));
                 }
                 Poll::Pending => {
                     ready!(si.poll_flush(cx))?;
-                    return Poll::Pending
+                    return Poll::Pending;
                 }
             }
         }

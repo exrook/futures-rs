@@ -54,14 +54,7 @@ where
     Fut: Future<Output = Option<B>>,
 {
     pub(super) fn new(stream: St, initial_state: S, f: F) -> Scan<St, S, Fut, F> {
-        Scan {
-            stream,
-            state_f: Some(StateFn {
-                state: initial_state,
-                f,
-            }),
-            future: None,
-        }
+        Scan { stream, state_f: Some(StateFn { state: initial_state, f }), future: None }
     }
 
     delegate_access_inner!(stream, St, ());

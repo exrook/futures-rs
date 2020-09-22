@@ -16,7 +16,7 @@ use futures_core::task::{Context, Poll};
 macro_rules! pending {
     () => {
         $crate::async_await::pending_once().await
-    }
+    };
 }
 
 #[doc(hidden)]

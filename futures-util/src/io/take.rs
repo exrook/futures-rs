@@ -1,10 +1,10 @@
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "read-initializer")]
 use futures_io::Initializer;
-use futures_io::{AsyncRead, AsyncBufRead};
+use futures_io::{AsyncBufRead, AsyncRead};
 use pin_project::pin_project;
-use std::{cmp, io};
 use std::pin::Pin;
+use std::{cmp, io};
 
 /// Reader for the [`take`](super::AsyncReadExt::take) method.
 #[pin_project]

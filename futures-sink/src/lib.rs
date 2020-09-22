@@ -8,14 +8,11 @@
 // It cannot be included in the published code because this lints have false positives in the minimum required version.
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
-
 // mem::take requires Rust 1.40, matches! requires Rust 1.42
 // Can be removed if the minimum supported version increased or if https://github.com/rust-lang/rust-clippy/issues/3941
 // get's implemented.
 #![allow(clippy::mem_replace_with_default, clippy::match_like_matches_macro)]
-
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
-
 #![doc(html_root_url = "https://docs.rs/futures-sink/0.3.5")]
 
 #[cfg(feature = "alloc")]
@@ -215,7 +212,10 @@ mod if_alloc {
     impl<S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for alloc::boxed::Box<S> {
         type Error = S::Error;
 
-        fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Pin::new(&mut **self).poll_ready(cx)
         }
 
@@ -223,11 +223,17 @@ mod if_alloc {
             Pin::new(&mut **self).start_send(item)
         }
 
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_flush(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Pin::new(&mut **self).poll_flush(cx)
         }
 
-        fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_close(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Pin::new(&mut **self).poll_close(cx)
         }
     }

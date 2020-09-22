@@ -14,13 +14,13 @@
 use crate::compat::Compat;
 use std::ptr;
 
-pub use futures_io::{
-    AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
-    IoSlice, IoSliceMut, Result, SeekFrom,
-};
 #[cfg(feature = "read-initializer")]
 #[cfg_attr(docsrs, doc(cfg(feature = "read-initializer")))]
 pub use futures_io::Initializer;
+pub use futures_io::{
+    AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, Error, ErrorKind, IoSlice, IoSliceMut, Result,
+    SeekFrom,
+};
 
 // used by `BufReader` and `BufWriter`
 // https://github.com/rust-lang/rust/blob/master/src/libstd/sys_common/io.rs#L1
@@ -111,7 +111,7 @@ mod sink;
 pub use self::sink::{sink, Sink};
 
 mod split;
-pub use self::split::{ReadHalf, WriteHalf, ReuniteError};
+pub use self::split::{ReadHalf, ReuniteError, WriteHalf};
 
 mod take;
 pub use self::take::Take;
@@ -191,7 +191,8 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Read::new(self, buf)
     }
@@ -202,7 +203,8 @@ pub trait AsyncReadExt: AsyncRead {
     /// The returned future will resolve to the number of bytes read once the read
     /// operation is completed.
     fn read_vectored<'a>(&'a mut self, bufs: &'a mut [IoSliceMut<'a>]) -> ReadVectored<'a, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         ReadVectored::new(self, bufs)
     }
@@ -244,11 +246,9 @@ pub trait AsyncReadExt: AsyncRead {
     /// assert_eq!(result.unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
     /// # });
     /// ```
-    fn read_exact<'a>(
-        &'a mut self,
-        buf: &'a mut [u8],
-    ) -> ReadExact<'a, Self>
-        where Self: Unpin,
+    fn read_exact<'a>(&'a mut self, buf: &'a mut [u8]) -> ReadExact<'a, Self>
+    where
+        Self: Unpin,
     {
         ReadExact::new(self, buf)
     }
@@ -272,11 +272,9 @@ pub trait AsyncReadExt: AsyncRead {
     /// assert_eq!(output, vec![1, 2, 3, 4]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    fn read_to_end<'a>(
-        &'a mut self,
-        buf: &'a mut Vec<u8>,
-    ) -> ReadToEnd<'a, Self>
-        where Self: Unpin,
+    fn read_to_end<'a>(&'a mut self, buf: &'a mut Vec<u8>) -> ReadToEnd<'a, Self>
+    where
+        Self: Unpin,
     {
         ReadToEnd::new(self, buf)
     }
@@ -300,11 +298,9 @@ pub trait AsyncReadExt: AsyncRead {
     /// assert_eq!(buffer, String::from("1234"));
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    fn read_to_string<'a>(
-        &'a mut self,
-        buf: &'a mut String,
-    ) -> ReadToString<'a, Self>
-        where Self: Unpin,
+    fn read_to_string<'a>(&'a mut self, buf: &'a mut String) -> ReadToString<'a, Self>
+    where
+        Self: Unpin,
     {
         ReadToString::new(self, buf)
     }
@@ -339,7 +335,8 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn split(self) -> (ReadHalf<Self>, WriteHalf<Self>)
-        where Self: AsyncWrite + Sized,
+    where
+        Self: AsyncWrite + Sized,
     {
         split::split(self)
     }
@@ -364,7 +361,8 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn take(self, limit: u64) -> Take<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Take::new(self, limit)
     }
@@ -378,7 +376,8 @@ pub trait AsyncReadExt: AsyncRead {
     #[cfg(feature = "io-compat")]
     #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
     fn compat(self) -> Compat<Self>
-        where Self: Sized + Unpin,
+    where
+        Self: Sized + Unpin,
     {
         Compat::new(self)
     }
@@ -411,14 +410,16 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn flush(&mut self) -> Flush<'_, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Flush::new(self)
     }
 
     /// Creates a future which will entirely close this `AsyncWrite`.
     fn close(&mut self) -> Close<'_, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Close::new(self)
     }
@@ -428,7 +429,8 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// The returned future will resolve to the number of bytes written once the write
     /// operation is completed.
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> Write<'a, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Write::new(self, buf)
     }
@@ -439,7 +441,8 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// The returned future will resolve to the number of bytes written once the write
     /// operation is completed.
     fn write_vectored<'a>(&'a mut self, bufs: &'a [IoSlice<'a>]) -> WriteVectored<'a, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         WriteVectored::new(self, bufs)
     }
@@ -465,7 +468,8 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         WriteAll::new(self, buf)
     }
@@ -531,7 +535,8 @@ pub trait AsyncWriteExt: AsyncWrite {
     #[cfg(feature = "io-compat")]
     #[cfg_attr(docsrs, doc(cfg(feature = "io-compat")))]
     fn compat_write(self) -> Compat<Self>
-        where Self: Sized + Unpin,
+    where
+        Self: Sized + Unpin,
     {
         Compat::new(self)
     }
@@ -565,7 +570,8 @@ pub trait AsyncWriteExt: AsyncWrite {
     #[cfg(feature = "sink")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
     fn into_sink<Item: AsRef<[u8]>>(self) -> IntoSink<Self, Item>
-        where Self: Sized,
+    where
+        Self: Sized,
     {
         IntoSink::new(self)
     }
@@ -581,7 +587,8 @@ pub trait AsyncSeekExt: AsyncSeek {
     /// In the case of an error the buffer and the object will be discarded, with
     /// the error yielded.
     fn seek(&mut self, pos: SeekFrom) -> Seek<'_, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Seek::new(self, pos)
     }
@@ -632,12 +639,9 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// assert_eq!(buf, b"");
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    fn read_until<'a>(
-        &'a mut self,
-        byte: u8,
-        buf: &'a mut Vec<u8>,
-    ) -> ReadUntil<'a, Self>
-        where Self: Unpin,
+    fn read_until<'a>(&'a mut self, byte: u8, buf: &'a mut Vec<u8>) -> ReadUntil<'a, Self>
+    where
+        Self: Unpin,
     {
         ReadUntil::new(self, byte, buf)
     }
@@ -694,7 +698,8 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn read_line<'a>(&'a mut self, buf: &'a mut String) -> ReadLine<'a, Self>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         ReadLine::new(self, buf)
     }
@@ -732,7 +737,8 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn lines(self) -> Lines<Self>
-        where Self: Sized,
+    where
+        Self: Sized,
     {
         Lines::new(self)
     }
