@@ -26,8 +26,9 @@ impl<Fut, F> Map<Fut, F> {
 }
 
 impl<Fut, F, T> FusedFuture for Map<Fut, F>
-    where Fut: Future,
-          F: FnOnce1<Fut::Output, Output=T>,
+where
+    Fut: Future,
+    F: FnOnce1<Fut::Output, Output = T>,
 {
     fn is_terminated(&self) -> bool {
         match self {
@@ -38,8 +39,9 @@ impl<Fut, F, T> FusedFuture for Map<Fut, F>
 }
 
 impl<Fut, F, T> Future for Map<Fut, F>
-    where Fut: Future,
-          F: FnOnce1<Fut::Output, Output=T>,
+where
+    Fut: Future,
+    F: FnOnce1<Fut::Output, Output = T>,
 {
     type Output = T;
 
@@ -51,7 +53,7 @@ impl<Fut, F, T> Future for Map<Fut, F>
                     MapProjOwn::Incomplete { f, .. } => Poll::Ready(f.call_once(output)),
                     MapProjOwn::Complete => unreachable!(),
                 }
-            },
+            }
             MapProj::Complete => panic!("Map must not be polled after it returned `Poll::Ready`"),
         }
     }

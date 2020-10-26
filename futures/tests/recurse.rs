@@ -1,7 +1,7 @@
 #[test]
 fn lots() {
     use futures::executor::block_on;
-    use futures::future::{self, FutureExt, BoxFuture};
+    use futures::future::{self, BoxFuture, FutureExt};
     use std::sync::mpsc;
     use std::thread;
 
@@ -15,8 +15,6 @@ fn lots() {
     }
 
     let (tx, rx) = mpsc::channel();
-    thread::spawn(|| {
-        block_on(do_it((1_000, 0)).map(move |x| tx.send(x).unwrap()))
-    });
+    thread::spawn(|| block_on(do_it((1_000, 0)).map(move |x| tx.send(x).unwrap())));
     assert_eq!(500_500, rx.recv().unwrap());
 }

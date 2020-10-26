@@ -13,7 +13,7 @@ pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 #[allow(clippy::module_inception)]
 mod future;
 pub use self::future::{
-    Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, NeverError, Then, UnitError, MapInto,
+    Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, MapInto, NeverError, Then, UnitError,
 };
 
 #[deprecated(note = "This is now an alias for [Flatten](Flatten)")]
@@ -28,12 +28,12 @@ pub use self::future::CatchUnwind;
 pub use self::future::{Remote, RemoteHandle};
 
 #[cfg(feature = "std")]
-pub use self::future::Shared;
+pub use self::future::{Shared, WeakShared};
 
 mod try_future;
 pub use self::try_future::{
-    AndThen, ErrInto, OkInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, OrElse, TryFlattenStream,
-    TryFutureExt, UnwrapOrElse, MapOkOrElse, TryFlatten,
+    AndThen, ErrInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, MapOkOrElse, OkInto,
+    OrElse, TryFlatten, TryFlattenStream, TryFutureExt, UnwrapOrElse,
 };
 
 #[cfg(feature = "sink")]

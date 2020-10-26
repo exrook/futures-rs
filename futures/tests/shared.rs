@@ -134,13 +134,39 @@ fn peek() {
     }
 
     // Once the Shared has been polled, the value is peekable on the clone.
-    spawn
-        .spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ()))))
-        .unwrap();
+    spawn.spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ())))).unwrap();
     local_pool.run();
     for _ in 0..2 {
         assert_eq!(*f2.peek().unwrap(), Ok(42));
     }
+}
+
+#[test]
+fn downgrade() {
+    use futures::channel::oneshot;
+    use futures::executor::block_on;
+    use futures::future::FutureExt;
+
+    let (tx, rx) = oneshot::channel::<i32>();
+    let shared = rx.shared();
+    // Since there are outstanding `Shared`s, we can get a `WeakShared`.
+    let weak = shared.downgrade().unwrap();
+    // It should upgrade fine right now.
+    let mut shared2 = weak.upgrade().unwrap();
+
+    tx.send(42).unwrap();
+    assert_eq!(block_on(shared).unwrap(), 42);
+
+    // We should still be able to get a new `WeakShared` and upgrade it
+    // because `shared2` is outstanding.
+    assert!(shared2.downgrade().is_some());
+    assert!(weak.upgrade().is_some());
+
+    assert_eq!(block_on(&mut shared2).unwrap(), 42);
+    // Now that all `Shared`s have been exhausted, we should not be able
+    // to get a new `WeakShared` or upgrade an existing one.
+    assert!(weak.upgrade().is_none());
+    assert!(shared2.downgrade().is_none());
 }
 
 #[test]
@@ -205,8 +231,5 @@ fn shared_future_that_wakes_itself_until_pending_is_returned() {
 
     // The join future can only complete if the second future gets a chance to run after the first
     // has returned pending
-    assert_eq!(
-        block_on(futures::future::join(fut, async { proceed.set(true) })),
-        ((), ())
-    );
+    assert_eq!(block_on(futures::future::join(fut, async { proceed.set(true) })), ((), ()));
 }

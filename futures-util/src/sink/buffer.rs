@@ -1,9 +1,9 @@
-use futures_core::stream::{Stream, FusedStream};
+use alloc::collections::VecDeque;
+use core::pin::Pin;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_project::pin_project;
-use core::pin::Pin;
-use alloc::collections::VecDeque;
 
 /// Sink for the [`buffer`](super::SinkExt::buffer) method.
 #[pin_project]
@@ -20,19 +20,12 @@ pub struct Buffer<Si, Item> {
 
 impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
     pub(super) fn new(sink: Si, capacity: usize) -> Self {
-        Buffer {
-            sink,
-            buf: VecDeque::with_capacity(capacity),
-            capacity,
-        }
+        Buffer { sink, buf: VecDeque::with_capacity(capacity), capacity }
     }
 
     delegate_access_inner!(sink, Si, ());
 
-    fn try_empty_buffer(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Si::Error>> {
+    fn try_empty_buffer(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Si::Error>> {
         let mut this = self.project();
         ready!(this.sink.as_mut().poll_ready(cx))?;
         while let Some(item) = this.buf.pop_front() {
@@ -46,7 +39,10 @@ impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
 }
 
 // Forwarding impl of Stream from the underlying sink
-impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
+impl<S, Item> Stream for Buffer<S, Item>
+where
+    S: Sink<Item> + Stream,
+{
     type Item = S::Item;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
@@ -58,7 +54,10 @@ impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
     }
 }
 
-impl<S, Item> FusedStream for Buffer<S, Item> where S: Sink<Item> + FusedStream {
+impl<S, Item> FusedStream for Buffer<S, Item>
+where
+    S: Sink<Item> + FusedStream,
+{
     fn is_terminated(&self) -> bool {
         self.sink.is_terminated()
     }
@@ -67,10 +66,7 @@ impl<S, Item> FusedStream for Buffer<S, Item> where S: Sink<Item> + FusedStream 
 impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
     type Error = Si::Error;
 
-    fn poll_ready(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         if self.capacity == 0 {
             return self.project().sink.poll_ready(cx);
         }
@@ -84,10 +80,7 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
         }
     }
 
-    fn start_send(
-        self: Pin<&mut Self>,
-        item: Item,
-    ) -> Result<(), Self::Error> {
+    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
         if self.capacity == 0 {
             self.project().sink.start_send(item)
         } else {
@@ -97,20 +90,14 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
     }
 
     #[allow(clippy::debug_assert_with_mut_call)]
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_buffer(cx))?;
         debug_assert!(self.buf.is_empty());
         self.project().sink.poll_flush(cx)
     }
 
     #[allow(clippy::debug_assert_with_mut_call)]
-    fn poll_close(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_buffer(cx))?;
         debug_assert!(self.buf.is_empty());
         self.project().sink.poll_close(cx)

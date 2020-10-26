@@ -20,10 +20,7 @@ where
     St::Ok: Extend<<St::Ok as IntoIterator>::Item> + IntoIterator + Default,
 {
     pub(super) fn new(stream: St) -> TryConcat<St> {
-        TryConcat {
-            stream,
-            accum: None,
-        }
+        TryConcat { stream, accum: None }
     }
 }
 

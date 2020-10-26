@@ -47,13 +47,7 @@ where
     Fut: TryFuture<Ok = bool, Error = St::Error>,
 {
     pub(super) fn new(stream: St, f: F) -> TryTakeWhile<St, Fut, F> {
-        TryTakeWhile {
-            stream,
-            f,
-            pending_fut: None,
-            pending_item: None,
-            done_taking: false,
-        }
+        TryTakeWhile { stream, f, pending_fut: None, pending_item: None, done_taking: false }
     }
 
     delegate_access_inner!(stream, St, ());
