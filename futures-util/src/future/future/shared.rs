@@ -92,6 +92,19 @@ impl<Fut: Future> Shared<Fut> {
 
         Self { inner: Some(Arc::new(inner)), waker_key: NULL_WAKER_KEY }
     }
+
+    /// Creates a [`Shared`] that is immediately ready with a value.
+    pub fn ready(output: Fut::Output) -> Shared<Fut> {
+        let inner = Inner {
+            future_or_output: UnsafeCell::new(FutureOrOutput::Output(output)),
+            notifier: Arc::new(Notifier {
+                state: AtomicUsize::new(COMPLETE),
+                wakers: Mutex::new(None),
+            }),
+        };
+
+        Shared { inner: Some(Arc::new(inner)), waker_key: NULL_WAKER_KEY }
+    }
 }
 
 impl<Fut> Shared<Fut>
