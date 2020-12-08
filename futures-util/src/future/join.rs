@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
 
-use crate::future::{MaybeDone, maybe_done};
+use crate::future::{maybe_done, MaybeDone};
 use core::fmt;
 use core::pin::Pin;
-use futures_core::future::{Future, FusedFuture};
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
 use pin_project::pin_project;
 

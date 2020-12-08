@@ -25,10 +25,7 @@ pub struct Peekable<St: Stream> {
 
 impl<St: Stream> Peekable<St> {
     pub(super) fn new(stream: St) -> Self {
-        Self {
-            stream: stream.fuse(),
-            peeked: None,
-        }
+        Self { stream: stream.fuse(), peeked: None }
     }
 
     delegate_access_inner!(stream, St, (.));
@@ -43,10 +40,7 @@ impl<St: Stream> Peekable<St> {
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
-    pub fn poll_peek(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<&St::Item>> {
+    pub fn poll_peek(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<&St::Item>> {
         let mut this = self.project();
 
         Poll::Ready(loop {
@@ -114,9 +108,7 @@ where
     St::Item: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Peek")
-            .field("inner", &self.inner)
-            .finish()
+        f.debug_struct("Peek").field("inner", &self.inner).finish()
     }
 }
 

@@ -107,8 +107,8 @@ cfg_target_has_atomic! {
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
 pub(crate) fn assert_stream<T, S>(stream: S) -> S
-    where
-        S: Stream<Item = T>,
+where
+    S: Stream<Item = T>,
 {
     stream
 }

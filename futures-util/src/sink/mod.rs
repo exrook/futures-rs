@@ -231,7 +231,8 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// It is the caller's responsibility to ensure all pending items
     /// are processed, which can be done via `flush` or `close`.
     fn feed(&mut self, item: Item) -> Feed<'_, Self, Item>
-        where Self: Unpin,
+    where
+        Self: Unpin,
     {
         Feed::new(self, item)
     }

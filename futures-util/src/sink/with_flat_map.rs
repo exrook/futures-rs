@@ -2,7 +2,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::ready;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_project::pin_project;
@@ -42,21 +42,12 @@ where
     St: Stream<Item = Result<Item, Si::Error>>,
 {
     pub(super) fn new(sink: Si, f: F) -> Self {
-        Self {
-            sink,
-            f,
-            stream: None,
-            buffer: None,
-            _marker: PhantomData,
-        }
+        Self { sink, f, stream: None, buffer: None, _marker: PhantomData }
     }
 
     delegate_access_inner!(sink, Si, ());
 
-    fn try_empty_stream(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Si::Error>> {
+    fn try_empty_stream(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Si::Error>> {
         let mut this = self.project();
 
         if this.buffer.is_some() {
@@ -111,17 +102,11 @@ where
 {
     type Error = Si::Error;
 
-    fn poll_ready(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.try_empty_stream(cx)
     }
 
-    fn start_send(
-        self: Pin<&mut Self>,
-        item: U,
-    ) -> Result<(), Self::Error> {
+    fn start_send(self: Pin<&mut Self>, item: U) -> Result<(), Self::Error> {
         let mut this = self.project();
 
         assert!(this.stream.is_none());
@@ -129,18 +114,12 @@ where
         Ok(())
     }
 
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_stream(cx)?);
         self.project().sink.poll_flush(cx)
     }
 
-    fn poll_close(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_stream(cx)?);
         self.project().sink.poll_close(cx)
     }

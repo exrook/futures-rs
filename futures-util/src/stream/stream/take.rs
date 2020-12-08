@@ -1,7 +1,7 @@
 use core::cmp;
 use core::pin::Pin;
 use futures_core::ready;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "sink")]
 use futures_sink::Sink;
@@ -19,24 +19,19 @@ pub struct Take<St> {
 
 impl<St: Stream> Take<St> {
     pub(super) fn new(stream: St, n: usize) -> Self {
-        Self {
-            stream,
-            remaining: n,
-        }
+        Self { stream, remaining: n }
     }
 
     delegate_access_inner!(stream, St, ());
 }
 
 impl<St> Stream for Take<St>
-    where St: Stream,
+where
+    St: Stream,
 {
     type Item = St::Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<St::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
         if self.remaining == 0 {
             Poll::Ready(None)
         } else {
@@ -62,7 +57,7 @@ impl<St> Stream for Take<St>
 
         let upper = match upper {
             Some(x) if x < self.remaining as usize => Some(x),
-            _ => Some(self.remaining as usize)
+            _ => Some(self.remaining as usize),
         };
 
         (lower, upper)
@@ -70,7 +65,8 @@ impl<St> Stream for Take<St>
 }
 
 impl<St> FusedStream for Take<St>
-    where St: FusedStream,
+where
+    St: FusedStream,
 {
     fn is_terminated(&self) -> bool {
         self.remaining == 0 || self.stream.is_terminated()
@@ -80,7 +76,8 @@ impl<St> FusedStream for Take<St>
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
 impl<S, Item> Sink<Item> for Take<S>
-    where S: Stream + Sink<Item>,
+where
+    S: Stream + Sink<Item>,
 {
     type Error = S::Error;
 

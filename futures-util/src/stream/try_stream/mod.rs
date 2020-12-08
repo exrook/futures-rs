@@ -5,16 +5,17 @@
 
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
+use crate::fns::{
+    inspect_err_fn, inspect_ok_fn, into_fn, map_err_fn, map_ok_fn, InspectErrFn, InspectOkFn,
+    IntoFn, MapErrFn, MapOkFn,
+};
+use crate::stream::{Inspect, Map};
 use core::pin::Pin;
 use futures_core::{
     future::{Future, TryFuture},
     stream::TryStream,
     task::{Context, Poll},
 };
-use crate::fns::{
-    InspectOkFn, inspect_ok_fn, InspectErrFn, inspect_err_fn, MapErrFn, map_err_fn, IntoFn, into_fn, MapOkFn, map_ok_fn,
-};
-use crate::stream::{Map, Inspect};
 
 mod and_then;
 #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411

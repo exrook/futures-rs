@@ -7,10 +7,10 @@
 use alloc::boxed::Box;
 use core::pin::Pin;
 
-use crate::future::{assert_future, Either};
-use crate::stream::assert_stream;
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
+use crate::future::{assert_future, Either};
 use crate::never::Never;
+use crate::stream::assert_stream;
 #[cfg(feature = "alloc")]
 use futures_core::future::{BoxFuture, LocalBoxFuture};
 use futures_core::{

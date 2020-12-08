@@ -20,16 +20,11 @@ fn flat_map() {
     use futures::stream::{self, StreamExt};
 
     futures::executor::block_on(async {
-        let st = stream::iter(vec![
-            stream::iter(0..=4u8),
-            stream::iter(6..=10),
-            stream::iter(0..=2),
-        ]);
+        let st =
+            stream::iter(vec![stream::iter(0..=4u8), stream::iter(6..=10), stream::iter(0..=2)]);
 
-        let values: Vec<_> = st
-            .flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0)))
-            .collect()
-            .await;
+        let values: Vec<_> =
+            st.flat_map(|s| s.filter(|v| futures::future::ready(v % 2 == 0))).collect().await;
 
         assert_eq!(values, vec![0, 2, 4, 6, 8, 10, 0, 2]);
     });
@@ -135,8 +130,8 @@ fn ready_chunks_panic_on_cap_zero() {
 #[test]
 fn ready_chunks() {
     use futures::channel::mpsc;
-    use futures::stream::StreamExt;
     use futures::sink::SinkExt;
+    use futures::stream::StreamExt;
     use futures::FutureExt;
     use futures_test::task::noop_context;
 
@@ -154,7 +149,7 @@ fn ready_chunks() {
         tx.send(2).await.unwrap();
         tx.send(3).await.unwrap();
         tx.send(4).await.unwrap();
-        assert_eq!(s.next().await.unwrap(), vec![2,3]);
+        assert_eq!(s.next().await.unwrap(), vec![2, 3]);
         assert_eq!(s.next().await.unwrap(), vec![4]);
     });
 }

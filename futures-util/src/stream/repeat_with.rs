@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 
 /// An stream that repeats elements of type `A` endlessly by
@@ -27,8 +27,7 @@ impl<A, F: FnMut() -> A> Stream for RepeatWith<F> {
     }
 }
 
-impl<A, F: FnMut() -> A> FusedStream for RepeatWith<F>
-{
+impl<A, F: FnMut() -> A> FusedStream for RepeatWith<F> {
     fn is_terminated(&self) -> bool {
         false
     }

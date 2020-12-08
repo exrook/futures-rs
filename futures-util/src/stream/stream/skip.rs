@@ -18,10 +18,7 @@ pub struct Skip<St> {
 
 impl<St: Stream> Skip<St> {
     pub(super) fn new(stream: St, n: usize) -> Self {
-        Self {
-            stream,
-            remaining: n,
-        }
+        Self { stream, remaining: n }
     }
 
     delegate_access_inner!(stream, St, ());
@@ -36,10 +33,7 @@ impl<St: FusedStream> FusedStream for Skip<St> {
 impl<St: Stream> Stream for Skip<St> {
     type Item = St::Item;
 
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<St::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<St::Item>> {
         let mut this = self.project();
 
         while *this.remaining > 0 {

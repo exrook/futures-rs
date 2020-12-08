@@ -35,11 +35,7 @@ pub struct Unfold<T, F, R> {
 /// # Ok::<(), futures::never::Never>(()) }).unwrap();
 /// ```
 pub fn unfold<T, F, R>(init: T, function: F) -> Unfold<T, F, R> {
-    Unfold {
-        state: Some(init),
-        function,
-        future: None,
-    }
+    Unfold { state: Some(init), function, future: None }
 }
 
 impl<T, F, R, Item, E> Sink<Item> for Unfold<T, F, R>

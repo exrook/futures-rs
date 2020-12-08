@@ -1,5 +1,5 @@
-use futures_core::ready;
 use futures_core::future::Future;
+use futures_core::ready;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncRead;
 use std::io;
@@ -20,19 +20,20 @@ impl<R: ?Sized + Unpin> Unpin for ReadToEnd<'_, R> {}
 impl<'a, R: AsyncRead + ?Sized + Unpin> ReadToEnd<'a, R> {
     pub(super) fn new(reader: &'a mut R, buf: &'a mut Vec<u8>) -> Self {
         let start_len = buf.len();
-        Self {
-            reader,
-            buf,
-            start_len,
-        }
+        Self { reader, buf, start_len }
     }
 }
 
-struct Guard<'a> { buf: &'a mut Vec<u8>, len: usize }
+struct Guard<'a> {
+    buf: &'a mut Vec<u8>,
+    len: usize,
+}
 
 impl Drop for Guard<'_> {
     fn drop(&mut self) {
-        unsafe { self.buf.set_len(self.len); }
+        unsafe {
+            self.buf.set_len(self.len);
+        }
     }
 }
 
@@ -80,7 +81,8 @@ pub(super) fn read_to_end_internal<R: AsyncRead + ?Sized>(
 }
 
 impl<A> Future for ReadToEnd<'_, A>
-    where A: AsyncRead + ?Sized + Unpin,
+where
+    A: AsyncRead + ?Sized + Unpin,
 {
     type Output = io::Result<usize>;
 

@@ -90,10 +90,7 @@ impl<Fut: Future> Shared<Fut> {
             }),
         };
 
-        Self {
-            inner: Some(Arc::new(inner)),
-            waker_key: NULL_WAKER_KEY,
-        }
+        Self { inner: Some(Arc::new(inner)), waker_key: NULL_WAKER_KEY }
     }
 }
 
@@ -197,10 +194,7 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
 
-        let inner = this
-            .inner
-            .take()
-            .expect("Shared future polled again after completion");
+        let inner = this.inner.take().expect("Shared future polled again after completion");
 
         // Fast path for when the wrapped future has already completed
         if inner.notifier.state.load(Acquire) == COMPLETE {
@@ -297,10 +291,7 @@ where
     Fut: Future,
 {
     fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            waker_key: NULL_WAKER_KEY,
-        }
+        Self { inner: self.inner.clone(), waker_key: NULL_WAKER_KEY }
     }
 }
 
@@ -334,16 +325,12 @@ impl ArcWake for Notifier {
     }
 }
 
-impl<Fut: Future> WeakShared<Fut>
-{
+impl<Fut: Future> WeakShared<Fut> {
     /// Attempts to upgrade this [`WeakShared`] into a [`Shared`].
     ///
     /// Returns [`None`] if all clones of the [`Shared`] have been dropped or polled
     /// to completion.
     pub fn upgrade(&self) -> Option<Shared<Fut>> {
-        Some(Shared {
-            inner: Some(self.0.upgrade()?),
-            waker_key: NULL_WAKER_KEY,
-        })
+        Some(Shared { inner: Some(self.0.upgrade()?), waker_key: NULL_WAKER_KEY })
     }
 }

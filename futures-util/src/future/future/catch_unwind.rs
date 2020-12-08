@@ -1,6 +1,6 @@
 use core::any::Any;
 use core::pin::Pin;
-use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
+use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
 
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
@@ -12,14 +12,18 @@ use pin_project::pin_project;
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct CatchUnwind<Fut>(#[pin] Fut);
 
-impl<Fut> CatchUnwind<Fut> where Fut: Future + UnwindSafe {
+impl<Fut> CatchUnwind<Fut>
+where
+    Fut: Future + UnwindSafe,
+{
     pub(super) fn new(future: Fut) -> Self {
         Self(future)
     }
 }
 
 impl<Fut> Future for CatchUnwind<Fut>
-    where Fut: Future + UnwindSafe,
+where
+    Fut: Future + UnwindSafe,
 {
     type Output = Result<Fut::Output, Box<dyn Any + Send>>;
 

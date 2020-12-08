@@ -14,14 +14,11 @@ cfg_target_has_atomic! {
 }
 
 mod spawn;
-pub use self::spawn::{SpawnExt, LocalSpawnExt};
+pub use self::spawn::{LocalSpawnExt, SpawnExt};
 
-pub use futures_core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+pub use futures_core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
-pub use futures_task::{
-    Spawn, LocalSpawn, SpawnError,
-    FutureObj, LocalFutureObj, UnsafeFutureObj,
-};
+pub use futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError, UnsafeFutureObj};
 
 pub use futures_task::noop_waker;
 #[cfg(feature = "std")]

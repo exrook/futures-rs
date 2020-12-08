@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::ready;
-use futures_core::stream::{Stream, FusedStream};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 use pin_project::pin_project;
 
@@ -26,7 +26,7 @@ pub fn once<Fut: Future>(future: Fut) -> Once<Fut> {
 #[must_use = "streams do nothing unless polled"]
 pub struct Once<Fut> {
     #[pin]
-    future: Option<Fut>
+    future: Option<Fut>,
 }
 
 impl<Fut> Once<Fut> {

@@ -1,19 +1,15 @@
 //! Tools for working with tasks.
 
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
-
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
 // It cannot be included in the published code because this lints have false positives in the minimum required version.
 #![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
-
 // mem::take requires Rust 1.40, matches! requires Rust 1.42
 // Can be removed if the minimum supported version increased or if https://github.com/rust-lang/rust-clippy/issues/3941
 // get's implemented.
 #![allow(clippy::mem_replace_with_default, clippy::match_like_matches_macro)]
-
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "unstable")))]
@@ -30,7 +26,7 @@ macro_rules! cfg_target_has_atomic {
 }
 
 mod spawn;
-pub use crate::spawn::{Spawn, SpawnError, LocalSpawn};
+pub use crate::spawn::{LocalSpawn, Spawn, SpawnError};
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
@@ -57,4 +53,4 @@ pub use crate::noop_waker::noop_waker;
 #[cfg(feature = "std")]
 pub use crate::noop_waker::noop_waker_ref;
 
-pub use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+pub use core::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
