@@ -9,10 +9,10 @@ use core::pin::Pin;
 
 use crate::fns::{inspect_fn, into_fn, ok_fn, InspectFn, IntoFn, OkFn};
 use crate::future::{assert_future, Either};
+#[cfg(feature = "alloc")]
+use crate::future::{BoxFuture, LocalBoxFuture};
 use crate::never::Never;
 use crate::stream::assert_stream;
-#[cfg(feature = "alloc")]
-use futures_core::future::{BoxFuture, LocalBoxFuture};
 use futures_core::{
     future::Future,
     stream::Stream,
@@ -537,7 +537,7 @@ pub trait FutureExt: Future {
     }
 
     /// Turns a [`Future<Output = T>`](Future) into a
-    /// [`TryFuture<Ok = T, Error = ()`>](futures_core::future::TryFuture).
+    /// [`TryFuture<Ok = T, Error = ()`>](crate::future::TryFuture).
     fn unit_error(self) -> UnitError<Self>
     where
         Self: Sized,
@@ -546,7 +546,7 @@ pub trait FutureExt: Future {
     }
 
     /// Turns a [`Future<Output = T>`](Future) into a
-    /// [`TryFuture<Ok = T, Error = Never`>](futures_core::future::TryFuture).
+    /// [`TryFuture<Ok = T, Error = Never`>](crate::future::TryFuture).
     fn never_error(self) -> NeverError<Self>
     where
         Self: Sized,

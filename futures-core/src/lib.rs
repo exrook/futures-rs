@@ -16,11 +16,11 @@ extern crate alloc;
 
 pub mod future;
 #[doc(hidden)]
-pub use self::future::{FusedFuture, Future, TryFuture};
+pub use self::future::{FusedFuture, Future};
 
 pub mod stream;
 #[doc(hidden)]
-pub use self::stream::{FusedStream, Stream, TryStream};
+pub use self::stream::{FusedStream, Stream};
 
 #[macro_use]
 pub mod task;

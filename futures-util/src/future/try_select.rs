@@ -1,6 +1,5 @@
-use crate::future::{Either, TryFutureExt};
+use crate::future::{Either, Future, TryFuture, TryFutureExt};
 use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
 
 /// Future for the [`try_select()`] function.
