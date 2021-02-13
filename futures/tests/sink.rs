@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 mod sassert_next {
     use futures::stream::{Stream, StreamExt};
     use futures::task::Poll;
@@ -347,7 +349,6 @@ fn with_flush() {
     use futures::channel::oneshot;
     use futures::executor::block_on;
     use futures::future::{self, FutureExt, TryFutureExt};
-    use futures::never::Never;
     use futures::sink::{Sink, SinkExt};
     use std::mem;
     use std::pin::Pin;
@@ -360,7 +361,7 @@ fn with_flush() {
     let mut sink = Vec::new().with(|elem| {
         mem::replace(&mut block, future::ok(()).boxed())
             .map_ok(move |()| elem + 1)
-            .map_err(|_| -> Never { panic!() })
+            .map_err(|_| -> Infallible { panic!() })
     });
 
     assert_eq!(Pin::new(&mut sink).start_send(0).ok(), Some(()));
@@ -383,10 +384,9 @@ fn with_flush() {
 fn with_as_map() {
     use futures::executor::block_on;
     use futures::future;
-    use futures::never::Never;
     use futures::sink::SinkExt;
 
-    let mut sink = Vec::new().with(|item| future::ok::<i32, Never>(item * 2));
+    let mut sink = Vec::new().with(|item| future::ok::<i32, Infallible>(item * 2));
     block_on(sink.send(0)).unwrap();
     block_on(sink.send(1)).unwrap();
     block_on(sink.send(2)).unwrap();
