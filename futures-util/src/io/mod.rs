@@ -32,7 +32,7 @@ pub use std::io::Initializer;
 #[doc(no_inline)]
 pub use std::io::{Error, ErrorKind, IoSlice, IoSliceMut, Result, SeekFrom};
 
-pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite};
+pub use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, DerefPinMut};
 
 // used by `BufReader` and `BufWriter`
 // https://github.com/rust-lang/rust/blob/master/src/libstd/sys_common/io.rs#L1
