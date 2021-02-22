@@ -300,6 +300,35 @@ pub trait FnRef1<A>: for<'a> Fn1<&'a A, Output = ()> + FnMutRef1<A> {}
 #[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<A, F: for<'a> Fn1<&'a A, Output = ()>> FnRef1<A> for F {}
 
+mod futures_test {
+    // needed by futures test at futures/tests/auto_traits.rs
+    use super::{Fn1, FnMut1, FnOnce1};
+
+    macro_rules! dummy_impl {
+        ($($type:ty),*) => {
+            $(
+                impl<'a, A> FnOnce1<&'a A> for $type {
+                    type Output = ();
+                    fn call_once(self, _: &'a A) -> Self::Output {
+                        ()
+                    }
+                }
+                impl<'a, A> FnMut1<&'a A> for $type {
+                    fn call_mut(&mut self, _: &'a A) -> Self::Output {
+                        ()
+                    }
+                }
+                impl<'a, A> Fn1<&'a A> for $type {
+                    fn call(&self, _: &'a A) -> Self::Output {
+                        ()
+                    }
+                }
+            )*
+        };
+    }
+
+    dummy_impl! { (), *const (), core::marker::PhantomPinned }
+}
 //--------------------------------------
 #[doc(hidden)]
 #[derive(Debug, Copy, Clone, Default)]
@@ -612,7 +641,8 @@ pub mod future {
         lazy_fns as lazy, poll_fn_fns as poll_fs, FutureExtFns, TryFutureExtFns,
     };
 }
-#[cfg(feature = "fntraits")]
+#[cfg(all(feature = "fntraits", feature = "sink"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "sink")))]
 pub mod sink {
     //! Adaptations for [`sink`](crate::sink) module using fn-trait wrappers.
     #[doc(inline)]
