@@ -32,8 +32,8 @@ mod unwrap {
 
 mod flag_cx {
     use futures::task::{self, ArcWake, Context};
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     // An Unpark struct that records unpark events for inspection
     pub struct Flag(AtomicBool);
@@ -129,7 +129,10 @@ mod manual_flush {
             Ok(())
         }
 
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_flush(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             if self.data.is_empty() {
                 Poll::Ready(Ok(()))
             } else {
@@ -145,10 +148,7 @@ mod manual_flush {
 
     impl<T: Unpin> ManualFlush<T> {
         pub fn new() -> Self {
-            Self {
-                data: Vec::new(),
-                waiting_tasks: Vec::new(),
-            }
+            Self { data: Vec::new(), waiting_tasks: Vec::new() }
         }
 
         pub fn force_flush(&mut self) -> Vec<T> {
@@ -179,10 +179,7 @@ mod allowance {
 
     impl Allow {
         pub fn new() -> Self {
-            Self {
-                flag: Cell::new(false),
-                tasks: RefCell::new(Vec::new()),
-            }
+            Self { flag: Cell::new(false), tasks: RefCell::new(Vec::new()) }
         }
 
         pub fn check(&self, cx: &mut Context<'_>) -> bool {
@@ -230,10 +227,7 @@ mod allowance {
 
     pub fn manual_allow<T: Unpin>() -> (ManualAllow<T>, Rc<Allow>) {
         let allow = Rc::new(Allow::new());
-        let manual_allow = ManualAllow {
-            data: Vec::new(),
-            allow: allow.clone(),
-        };
+        let manual_allow = ManualAllow { data: Vec::new(), allow: allow.clone() };
         (manual_allow, allow)
     }
 }
@@ -244,11 +238,8 @@ fn either_sink() {
     use std::collections::VecDeque;
     use std::pin::Pin;
 
-    let mut s = if true {
-        Vec::<i32>::new().left_sink()
-    } else {
-        VecDeque::<i32>::new().right_sink()
-    };
+    let mut s =
+        if true { Vec::<i32>::new().left_sink() } else { VecDeque::<i32>::new().right_sink() };
 
     Pin::new(&mut s).start_send(0).unwrap();
 }
@@ -325,9 +316,9 @@ fn mpsc_blocking_start_send() {
     use futures::executor::block_on;
     use futures::future::{self, FutureExt};
 
-    use start_send_fut::StartSendFut;
     use flag_cx::flag_cx;
     use sassert_next::sassert_next;
+    use start_send_fut::StartSendFut;
     use unwrap::unwrap;
 
     let (mut tx, mut rx) = mpsc::channel::<i32>(0);
@@ -461,8 +452,8 @@ fn with_flush_propagate() {
     use futures::sink::{Sink, SinkExt};
     use std::pin::Pin;
 
-    use manual_flush::ManualFlush;
     use flag_cx::flag_cx;
+    use manual_flush::ManualFlush;
     use unwrap::unwrap;
 
     let mut sink = ManualFlush::new().with(future::ok::<Option<i32>, ()>);
@@ -494,13 +485,10 @@ fn with_implements_clone() {
     let (mut tx, rx) = mpsc::channel(5);
 
     {
-        let mut is_positive = tx
-            .clone()
-            .with(|item| future::ok::<bool, mpsc::SendError>(item > 0));
+        let mut is_positive = tx.clone().with(|item| future::ok::<bool, mpsc::SendError>(item > 0));
 
-        let mut is_long = tx
-            .clone()
-            .with(|item: &str| future::ok::<bool, mpsc::SendError>(item.len() > 5));
+        let mut is_long =
+            tx.clone().with(|item: &str| future::ok::<bool, mpsc::SendError>(item.len() > 5));
 
         block_on(is_positive.clone().send(-1)).unwrap();
         block_on(is_long.clone().send("123456")).unwrap();
@@ -512,10 +500,7 @@ fn with_implements_clone() {
 
     block_on(tx.close()).unwrap();
 
-    assert_eq!(
-        block_on(rx.collect::<Vec<_>>()),
-        vec![false, true, false, true, false]
-    );
+    assert_eq!(block_on(rx.collect::<Vec<_>>()), vec![false, true, false, true, false]);
 }
 
 // test that a buffer is a no-nop around a sink that always accepts sends
@@ -543,10 +528,10 @@ fn buffer() {
     use futures::future::FutureExt;
     use futures::sink::SinkExt;
 
-    use start_send_fut::StartSendFut;
-    use flag_cx::flag_cx;
-    use unwrap::unwrap;
     use allowance::manual_allow;
+    use flag_cx::flag_cx;
+    use start_send_fut::StartSendFut;
+    use unwrap::unwrap;
 
     let (sink, allow) = manual_allow::<i32>();
     let sink = sink.buffer(2);
@@ -588,8 +573,8 @@ fn fanout_backpressure() {
     use futures::sink::SinkExt;
     use futures::stream::StreamExt;
 
-    use start_send_fut::StartSendFut;
     use flag_cx::flag_cx;
+    use start_send_fut::StartSendFut;
     use unwrap::unwrap;
 
     let (left_send, mut left_recv) = mpsc::channel(0);
@@ -639,10 +624,7 @@ fn sink_map_err() {
     }
 
     let tx = mpsc::channel(0).0;
-    assert_eq!(
-        Pin::new(&mut tx.sink_map_err(|_| ())).start_send(()),
-        Err(())
-    );
+    assert_eq!(Pin::new(&mut tx.sink_map_err(|_| ())).start_send(()), Err(()));
 }
 
 #[test]
@@ -709,8 +691,5 @@ fn err_into() {
     }
 
     let tx = mpsc::channel(0).0;
-    assert_eq!(
-        Pin::new(&mut tx.sink_err_into()).start_send(()),
-        Err(ErrIntoTest)
-    );
+    assert_eq!(Pin::new(&mut tx.sink_err_into()).start_send(()), Err(ErrIntoTest));
 }
