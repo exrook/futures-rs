@@ -53,10 +53,11 @@ where
     delegate_access_inner!(stream, St, ());
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> FusedStream for Filter<St, Fut, F>
 where
     St: Stream + FusedStream,
-    F: FnMut(&St::Item) -> Fut,
+    F: for<'a> FnMut1<&'a St::Item, Output = Fut>,
     Fut: Future<Output = bool>,
 {
     fn is_terminated(&self) -> bool {
@@ -105,10 +106,11 @@ where
 
 // Forwarding impl of Sink from the underlying stream
 #[cfg(feature = "sink")]
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<S, Fut, F, Item> Sink<Item> for Filter<S, Fut, F>
 where
     S: Stream + Sink<Item>,
-    F: FnMut(&S::Item) -> Fut,
+    F: for<'a> FnMut1<&'a S::Item, Output = Fut>,
     Fut: Future<Output = bool>,
 {
     type Error = S::Error;

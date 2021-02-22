@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
@@ -50,10 +51,11 @@ where
     delegate_access_inner!(stream, St, ());
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> FusedStream for TryFilter<St, Fut, F>
 where
     St: TryStream + FusedStream,
-    F: FnMut(&St::Ok) -> Fut,
+    F: for<'a> FnMut1<&'a St::Ok, Output = Fut>,
     Fut: Future<Output = bool>,
 {
     fn is_terminated(&self) -> bool {
@@ -61,11 +63,12 @@ where
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<St, Fut, F> Stream for TryFilter<St, Fut, F>
 where
     St: TryStream,
     Fut: Future<Output = bool>,
-    F: FnMut(&St::Ok) -> Fut,
+    F: for<'a> FnMut1<&'a St::Ok, Output = Fut>,
 {
     type Item = Result<St::Ok, St::Error>;
 
@@ -81,7 +84,7 @@ where
                 }
                 *this.pending_item = None;
             } else if let Some(item) = ready!(this.stream.as_mut().try_poll_next(cx)?) {
-                this.pending_fut.set(Some((this.f)(&item)));
+                this.pending_fut.set(Some(this.f.call_mut(&item)));
                 *this.pending_item = Some(item);
             } else {
                 break None;

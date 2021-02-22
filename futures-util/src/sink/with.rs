@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
@@ -34,7 +35,7 @@ where
 impl<Si, Item, U, Fut, F> With<Si, Item, U, Fut, F>
 where
     Si: Sink<Item>,
-    F: FnMut(U) -> Fut,
+    F: FnMut1<U, Output = Fut>,
     Fut: Future,
 {
     pub(super) fn new<E>(sink: Si, f: F) -> Self
@@ -66,7 +67,7 @@ where
 impl<S, Item, U, Fut, F> Stream for With<S, Item, U, Fut, F>
 where
     S: Stream + Sink<Item>,
-    F: FnMut(U) -> Fut,
+    F: FnMut1<U, Output = Fut>,
     Fut: Future,
 {
     type Item = S::Item;
@@ -77,7 +78,7 @@ where
 impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
 where
     Si: Sink<Item>,
-    F: FnMut(U) -> Fut,
+    F: FnMut1<U, Output = Fut>,
     Fut: Future<Output = Result<Item, E>>,
     E: From<Si::Error>,
 {
@@ -100,7 +101,7 @@ where
 impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
 where
     Si: Sink<Item>,
-    F: FnMut(U) -> Fut,
+    F: FnMut1<U, Output = Fut>,
     Fut: Future<Output = Result<Item, E>>,
     E: From<Si::Error>,
 {
@@ -116,7 +117,7 @@ where
         let mut this = self.project();
 
         assert!(this.state.is_none());
-        this.state.set(Some((this.f)(item)));
+        this.state.set(Some(this.f.call_mut(item)));
         Ok(())
     }
 

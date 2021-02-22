@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
@@ -33,7 +34,7 @@ where
 impl<St, Fut, F> Then<St, Fut, F>
 where
     St: Stream,
-    F: FnMut(St::Item) -> Fut,
+    F: FnMut1<St::Item, Output = Fut>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
         Self { stream, future: None, f }
@@ -45,7 +46,7 @@ where
 impl<St, Fut, F> FusedStream for Then<St, Fut, F>
 where
     St: FusedStream,
-    F: FnMut(St::Item) -> Fut,
+    F: FnMut1<St::Item, Output = Fut>,
     Fut: Future,
 {
     fn is_terminated(&self) -> bool {
@@ -56,7 +57,7 @@ where
 impl<St, Fut, F> Stream for Then<St, Fut, F>
 where
     St: Stream,
-    F: FnMut(St::Item) -> Fut,
+    F: FnMut1<St::Item, Output = Fut>,
     Fut: Future,
 {
     type Item = Fut::Output;
@@ -70,7 +71,7 @@ where
                 this.future.set(None);
                 break Some(item);
             } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
-                this.future.set(Some((this.f)(item)));
+                this.future.set(Some(this.f.call_mut(item)));
             } else {
                 break None;
             }

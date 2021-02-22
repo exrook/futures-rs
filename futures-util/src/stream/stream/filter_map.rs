@@ -37,7 +37,7 @@ where
 impl<St, Fut, F> FilterMap<St, Fut, F>
 where
     St: Stream,
-    F: FnMut(St::Item) -> Fut,
+    F: FnMut1<St::Item, Output = Fut>,
     Fut: Future,
 {
     pub(super) fn new(stream: St, f: F) -> Self {

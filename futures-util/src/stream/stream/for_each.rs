@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
@@ -34,7 +35,7 @@ where
 impl<St, Fut, F> ForEach<St, Fut, F>
 where
     St: Stream,
-    F: FnMut(St::Item) -> Fut,
+    F: FnMut1<St::Item, Output = Fut>,
     Fut: Future<Output = ()>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
@@ -45,7 +46,7 @@ where
 impl<St, Fut, F> FusedFuture for ForEach<St, Fut, F>
 where
     St: FusedStream,
-    F: FnMut(St::Item) -> Fut,
+    F: FnMut1<St::Item, Output = Fut>,
     Fut: Future<Output = ()>,
 {
     fn is_terminated(&self) -> bool {
@@ -56,7 +57,7 @@ where
 impl<St, Fut, F> Future for ForEach<St, Fut, F>
 where
     St: Stream,
-    F: FnMut(St::Item) -> Fut,
+    F: FnMut1<St::Item, Output = Fut>,
     Fut: Future<Output = ()>,
 {
     type Output = ();
@@ -68,7 +69,7 @@ where
                 ready!(fut.poll(cx));
                 this.future.set(None);
             } else if let Some(item) = ready!(this.stream.as_mut().poll_next(cx)) {
-                this.future.set(Some((this.f)(item)));
+                this.future.set(Some(this.f.call_mut(item)));
             } else {
                 break;
             }

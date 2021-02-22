@@ -20,6 +20,10 @@ pub use futures_task::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 // Extension traits and combinators
 #[allow(clippy::module_inception)]
 mod future;
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::future::FutureExtFns;
 pub use self::future::{
     Flatten, Fuse, FutureExt, Inspect, IntoStream, Map, MapInto, NeverError, Then, UnitError,
 };
@@ -39,6 +43,10 @@ pub use self::future::{Remote, RemoteHandle};
 pub use self::future::{Shared, WeakShared};
 
 mod try_future;
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use self::try_future::TryFutureExtFns;
 pub use self::try_future::{
     AndThen, ErrInto, InspectErr, InspectOk, IntoFuture, MapErr, MapOk, MapOkOrElse, OkInto,
     OrElse, TryFlatten, TryFlattenStream, TryFutureExt, UnwrapOrElse,
@@ -52,6 +60,10 @@ pub use self::try_future::FlattenSink;
 
 mod lazy;
 pub use self::lazy::{lazy, Lazy};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use lazy::lazy_fns;
 
 mod pending;
 pub use self::pending::{pending, Pending};
@@ -67,6 +79,10 @@ pub use self::option::OptionFuture;
 
 mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
+#[cfg(feature = "fntraits")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fntraits")))]
+#[doc(hidden)]
+pub use poll_fn::poll_fn_fns;
 
 mod ready;
 pub use self::ready::{err, ok, ready, Ready};

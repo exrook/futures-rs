@@ -1,3 +1,4 @@
+use crate::fns::FnMut1;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
@@ -36,7 +37,7 @@ where
 impl<St, Fut, F> OrElse<St, Fut, F>
 where
     St: TryStream,
-    F: FnMut(St::Error) -> Fut,
+    F: FnMut1<St::Error, Output = Fut>,
     Fut: TryFuture<Ok = St::Ok>,
 {
     pub(super) fn new(stream: St, f: F) -> Self {
@@ -49,7 +50,7 @@ where
 impl<St, Fut, F> Stream for OrElse<St, Fut, F>
 where
     St: TryStream,
-    F: FnMut(St::Error) -> Fut,
+    F: FnMut1<St::Error, Output = Fut>,
     Fut: TryFuture<Ok = St::Ok>,
 {
     type Item = Result<St::Ok, Fut::Error>;
@@ -66,7 +67,7 @@ where
                 match ready!(this.stream.as_mut().try_poll_next(cx)) {
                     Some(Ok(item)) => break Some(Ok(item)),
                     Some(Err(e)) => {
-                        this.future.set(Some((this.f)(e)));
+                        this.future.set(Some(this.f.call_mut(e)));
                     }
                     None => break None,
                 }
@@ -89,7 +90,7 @@ where
 impl<St, Fut, F> FusedStream for OrElse<St, Fut, F>
 where
     St: TryStream + FusedStream,
-    F: FnMut(St::Error) -> Fut,
+    F: FnMut1<St::Error, Output = Fut>,
     Fut: TryFuture<Ok = St::Ok>,
 {
     fn is_terminated(&self) -> bool {
