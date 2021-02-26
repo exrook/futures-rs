@@ -8,9 +8,7 @@ mod countingwaker {
 
     impl CountingWaker {
         fn new() -> Self {
-            Self {
-                nr_wake: Mutex::new(0),
-            }
+            Self { nr_wake: Mutex::new(0) }
         }
 
         fn wakes(&self) -> i32 {
@@ -75,7 +73,10 @@ fn proper_refcount_on_wake_panic() {
     let some_w = Arc::new(PanicWaker);
 
     let w1: Waker = task::waker(some_w.clone());
-    assert_eq!("WAKE UP", *std::panic::catch_unwind(|| w1.wake_by_ref()).unwrap_err().downcast::<&str>().unwrap());
+    assert_eq!(
+        "WAKE UP",
+        *std::panic::catch_unwind(|| w1.wake_by_ref()).unwrap_err().downcast::<&str>().unwrap()
+    );
     assert_eq!(2, Arc::strong_count(&some_w)); // some_w + w1
     drop(w1);
     assert_eq!(1, Arc::strong_count(&some_w)); // some_w
