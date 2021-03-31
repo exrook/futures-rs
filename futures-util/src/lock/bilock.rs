@@ -9,7 +9,7 @@ use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
 use core::ptr;
 use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::SeqCst;
+use core::sync::atomic::Ordering::{SeqCst, Acquire, Release, AcqRel, Relaxed};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 
@@ -96,9 +96,9 @@ impl<T> BiLock<T> {
         let xor = if self.index { 0b10 } else { 0b01 };
         let other = if !self.index { 0b10 } else { 0b01 };
         //println!("Trying to lock: {:b}", xor);
-        match self.arc.state.fetch_or(xor, SeqCst) {
+        match self.arc.state.fetch_or(xor, AcqRel) {
             x if x & (xor<<2) != 0 => { // Other half has set our waker lock bit high
-                self.arc.state.fetch_and((other<<2)|0b11, SeqCst); // clear the lock bit
+                self.arc.state.fetch_and((other<<2)|0b11, Relaxed); // clear the lock bit
                 //println!("GAVE IT TO US {:b} US: {:b}", x, xor);
                 Poll::Ready(BiLockGuard { bilock: self })
             }
@@ -108,15 +108,15 @@ impl<T> BiLock<T> {
             }
             x if x & other != 0 => { // Other 
                 //println!("ENTERING CONTENTION? {:b} US {:b}", x, xor);
-                let mut state = self.arc.state.fetch_or(xor<<2, SeqCst); // attempt to lock waker
+                let mut state = self.arc.state.fetch_or(xor<<2, AcqRel); // attempt to lock waker
                 if state & (xor<<2) != 0 {
-                    self.arc.state.fetch_and((other<<2)|0b11, SeqCst); // clear the lock bit
+                    self.arc.state.fetch_and((other<<2)|0b11, Release); // clear the lock bit
                     Poll::Ready(BiLockGuard { bilock: self })
                 } else {
                 loop {
                     match state {
                         x if x&0b11 == xor => { // lock is ours
-                            self.arc.state.fetch_and((other<<2) | 0b11, SeqCst); // free waker lock
+                            self.arc.state.fetch_and((other<<2) | 0b11, Release); // free waker lock
                             break Poll::Ready(BiLockGuard{ bilock: self })
                         }
                         x if x&(other<<2) == 0 => { // waker lock is ours
@@ -124,7 +124,7 @@ impl<T> BiLock<T> {
                             unsafe {
                                 ptr::replace(self.arc.waker.get(), Some(cx.waker().clone()));
                             }
-                            if self.arc.state.fetch_and((other<<2)|0b11, SeqCst)&0b11 == xor { // free waker lock
+                            if self.arc.state.fetch_and((other<<2)|0b11, AcqRel)&0b11 == xor { // free waker lock
                                 //println!("real shit {:b}", xor);
                                 break Poll::Ready(BiLockGuard{ bilock: self }) // lock is now ours
                             } else {
@@ -134,7 +134,7 @@ impl<T> BiLock<T> {
                         }
                         x if x & (other << 2) != 0 => { // contention on waker lock
                             //println!("WAKE LOCK CONTENTION, {:b} LOCKER: {:b}", x, xor);
-                            state = self.arc.state.load(SeqCst)
+                            state = self.arc.state.load(Acquire)
                         }
                         x => unreachable!("X: {:b} US: {:b}", x, xor)
                     }
@@ -231,13 +231,13 @@ impl<T> BiLock<T> {
         let xor = if self.index { 0b10 } else { 0b01 };
         let other = if !self.index { 0b10 } else { 0b01 };
         //println!("Unlocking: {:b}", xor);
-        match self.arc.state.fetch_xor(xor, SeqCst) {
+        match self.arc.state.fetch_xor(xor, AcqRel) {
             x if x&other == 0 => { // uncontended, do nothing
                 //println!("NO CONTENTION LETS GO {:b} US: {:b}", x, xor);
             }
             x if x&other != 0 => { // other half is waiting, attempt to wake
                 //println!("ENTERING CONTENTION");
-                let mut state = self.arc.state.fetch_or(xor<<2, SeqCst); // attempt to lock waker
+                let mut state = self.arc.state.fetch_or(xor<<2, AcqRel); // attempt to lock waker
                 loop {
                     match state {
                         x if x&(other<<2) == 0 => { // waker lock is ours
@@ -251,12 +251,12 @@ impl<T> BiLock<T> {
                             } else {
                                 //println!("NO WAKEY :( {:b}", xor);
                             }
-                            self.arc.state.fetch_xor(0b1100, SeqCst);// free waker lock, try to set other half's bit high
+                            self.arc.state.fetch_xor(0b1100, Release);// free waker lock, try to set other half's bit high
                             break;
                         }
                         x if x & (other << 2) != 0 => { // contention on waker lock
                             //println!("WAKE LOCK CONTENTION, {:b} UNLOCKER: {:b}", x, xor);
-                            state = self.arc.state.load(SeqCst)
+                            state = self.arc.state.load(Acquire)
                         }
                         x => unreachable!("X: {:b} US: {:b}", x, xor)
                     }
