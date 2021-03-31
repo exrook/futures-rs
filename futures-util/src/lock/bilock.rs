@@ -313,9 +313,16 @@ impl<T> BiLockAcquired<T> {
         unsafe { Pin::new_unchecked(&mut *self.bilock.arc.value.as_ref().unwrap().get()) }
     }
     pub fn unlock(self) -> BiLock<T> {
-        let mut bilock = self.bilock;
-        mem::drop(BiLockGuard { bilock: &mut bilock });
+        let mut bilock = unsafe {ptr::read(&self.bilock)}; // get the lock out without running our destructor
+        mem::forget(self); 
+        mem::drop(BiLockGuard { bilock: &mut bilock }); // unlock the lock
         bilock
+    }
+}
+
+impl<T> Drop for BiLockAcquired<T> {
+    fn drop(&mut self) {
+        self.bilock.unlock();
     }
 }
 
@@ -342,7 +349,7 @@ impl<T> Future for BiLockAcquire<T> {
         match bilock.poll_lock(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(guard) => {
-                mem::forget(guard);
+                mem::forget(guard); // don't run the destructor, so the lock stays locked by us
             }
         }
         Poll::Ready(BiLockAcquired {
