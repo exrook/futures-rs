@@ -7,8 +7,10 @@ use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
+use core::ptr;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
+use core::mem;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 
@@ -33,16 +35,28 @@ use alloc::sync::Arc;
 ///
 /// This type is only available when the `bilock` feature of this
 /// library is activated.
-#[derive(Debug)]
 #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct BiLock<T> {
     arc: Arc<Inner<T>>,
+    index: bool,
 }
 
-#[derive(Debug)]
+impl<T> fmt::Debug for BiLock<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BiLock").field("arc", &self.arc).field("index", &self.index).finish()
+    }
+}
+
 struct Inner<T> {
     state: AtomicUsize,
+    waker: UnsafeCell<Option<Waker>>,
     value: Option<UnsafeCell<T>>,
+}
+
+impl<T> fmt::Debug for Inner<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Inner").field("state", &self.state).field("waker", &self.waker).finish()
+    }
 }
 
 unsafe impl<T: Send> Send for Inner<T> {}
@@ -64,9 +78,10 @@ impl<T> BiLock<T> {
         let arc = Arc::new(Inner {
             state: AtomicUsize::new(0),
             value: Some(UnsafeCell::new(t)),
+            waker: UnsafeCell::new(None),
         });
 
-        (Self { arc: arc.clone() }, Self { arc })
+        (Self { arc: arc.clone(), index: true }, Self { arc, index: false })
     }
 
     /// Attempt to acquire this lock, returning `Pending` if it can't be
@@ -87,49 +102,48 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self, cx: &mut Context<'_>) -> Poll<BiLockGuard<'_, T>> {
-        let mut waker = None;
-        loop {
-            match self.arc.state.swap(1, SeqCst) {
-                // Woohoo, we grabbed the lock!
-                0 => return Poll::Ready(BiLockGuard { bilock: self }),
-
-                // Oops, someone else has locked the lock
-                1 => {}
-
-                // A task was previously blocked on this lock, likely our task,
-                // so we need to update that task.
-                n => unsafe {
-                    let mut prev = Box::from_raw(n as *mut Waker);
-                    *prev = cx.waker().clone();
-                    waker = Some(prev);
+    pub fn poll_lock(&mut self, cx: &mut Context<'_>) -> Poll<BiLockGuard<'_, T>> {
+        let xor = if self.index { 0b10 } else { 0b01 };
+        let other = if !self.index { 0b10 } else { 0b01 };
+        match self.arc.state.fetch_or(xor, SeqCst) {
+            x if x & (xor<<2) != 0 => { // Other half has set our waker lock bit high
+                self.arc.state.fetch_and((other<<2)|0b11, SeqCst); // clear the lock bit
+                Poll::Ready(BiLockGuard { bilock: self })
+            }
+            x if x&other == 0 => { // uncontended
+                Poll::Ready(BiLockGuard { bilock: self })
+            }
+            x if x & other != 0 => { // Other 
+                let mut state = self.arc.state.fetch_or(xor<<2, SeqCst); // attempt to lock waker
+                if state & (xor<<2) != 0 {
+                    self.arc.state.fetch_and((other<<2)|0b11, SeqCst); // clear the lock bit
+                    Poll::Ready(BiLockGuard { bilock: self })
+                } else {
+                loop {
+                    match state {
+                        x if x&0b11 == xor => { // lock is ours
+                            self.arc.state.fetch_and((other<<2) | 0b11, SeqCst); // free waker lock
+                            break Poll::Ready(BiLockGuard{ bilock: self })
+                        }
+                        x if x&(other<<2) == 0 => { // waker lock is ours
+                            unsafe {
+                                ptr::replace(self.arc.waker.get(), Some(cx.waker().clone()));
+                            }
+                            if self.arc.state.fetch_and((other<<2)|0b11, SeqCst)&0b11 == xor { // free waker lock
+                                break Poll::Ready(BiLockGuard{ bilock: self }) // lock is now ours
+                            } else {
+                                break Poll::Pending
+                            }
+                        }
+                        x if x & (other << 2) != 0 => { // contention on waker lock
+                            state = self.arc.state.load(SeqCst)
+                        }
+                        _ => unreachable!()
+                    }
+                }
                 }
             }
-
-            // type ascription for safety's sake!
-            let me: Box<Waker> = waker.take().unwrap_or_else(||Box::new(cx.waker().clone()));
-            let me = Box::into_raw(me) as usize;
-
-            match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {
-                // The lock is still locked, but we've now parked ourselves, so
-                // just report that we're scheduled to receive a notification.
-                Ok(_) => return Poll::Pending,
-
-                // Oops, looks like the lock was unlocked after our swap above
-                // and before the compare_exchange. Deallocate what we just
-                // allocated and go through the loop again.
-                Err(0) => unsafe {
-                    waker = Some(Box::from_raw(me as *mut Waker));
-                },
-
-                // The top of this loop set the previous state to 1, so if we
-                // failed the CAS above then it's because the previous value was
-                // *not* zero or one. This indicates that a task was blocked,
-                // but we're trying to acquire the lock and there's only one
-                // other reference of the lock, so it should be impossible for
-                // that task to ever block itself.
-                Err(n) => panic!("invalid state: {}", n),
-            }
+            _ => unreachable!()
         }
     }
 
@@ -144,9 +158,9 @@ impl<T> BiLock<T> {
     /// Note that the returned future will never resolve to an error.
     #[cfg(feature = "bilock")]
     #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
-    pub fn lock(&self) -> BiLockAcquire<'_, T> {
+    pub fn lock(self) -> BiLockAcquire<T> {
         BiLockAcquire {
-            bilock: self,
+            bilock: Some(self),
         }
     }
 
@@ -168,20 +182,34 @@ impl<T> BiLock<T> {
         }
     }
 
-    fn unlock(&self) {
-        match self.arc.state.swap(0, SeqCst) {
-            // we've locked the lock, shouldn't be possible for us to see an
-            // unlocked lock.
-            0 => panic!("invalid unlocked state"),
-
-            // Ok, no one else tried to get the lock, we're done.
-            1 => {}
-
-            // Another task has parked themselves on this lock, let's wake them
-            // up as its now their turn.
-            n => unsafe {
-                Box::from_raw(n as *mut Waker).wake();
+    fn unlock(&mut self) {
+        let xor = if self.index { 0b10 } else { 0b01 };
+        let other = if !self.index { 0b10 } else { 0b01 };
+        match self.arc.state.fetch_xor(xor, SeqCst) {
+            x if x&other == 0 => {} // uncontended, do nothing
+            x if x&other != 0 => { // other half is waiting, attempt to wake
+                let mut state = self.arc.state.fetch_or(xor<<2, SeqCst); // attempt to lock waker
+                loop {
+                    match state {
+                        x if x&(other<<2) == 0 => { // waker lock is ours
+                            let waker = unsafe {
+                                ptr::replace(self.arc.waker.get(), None)
+                            };
+                            if let Some(waker) = waker {
+                                waker.wake()
+                            } else {
+                            }
+                            self.arc.state.fetch_xor(0b1100, SeqCst);// free waker lock, try to set other half's bit high
+                            break;
+                        }
+                        x if x & (other << 2) != 0 => { // contention on waker lock
+                            state = self.arc.state.load(SeqCst)
+                        }
+                        _ => unreachable!()
+                    }
+                }
             }
+            _ => unreachable!()
         }
     }
 }
@@ -194,7 +222,7 @@ impl<T: Unpin> Inner<T> {
 
 impl<T> Drop for Inner<T> {
     fn drop(&mut self) {
-        assert_eq!(self.state.load(SeqCst), 0);
+        //assert_eq!(self.state.load(SeqCst)|0b11, 0);
     }
 }
 
@@ -228,7 +256,7 @@ impl<T: core::any::Any> std::error::Error for ReuniteError<T> {}
 #[derive(Debug)]
 #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct BiLockGuard<'a, T> {
-    bilock: &'a BiLock<T>,
+    bilock: &'a mut BiLock<T>,
 }
 
 impl<T> Deref for BiLockGuard<'_, T> {
@@ -259,25 +287,66 @@ impl<T> Drop for BiLockGuard<'_, T> {
     }
 }
 
+#[derive(Debug)]
+pub struct BiLockAcquired<T> {
+    bilock: BiLock<T>
+}
+
+impl<T> Deref for BiLockAcquired<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        unsafe { &*self.bilock.arc.value.as_ref().unwrap().get() }
+    }
+}
+
+impl<T: Unpin> DerefMut for BiLockAcquired<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        unsafe { &mut *self.bilock.arc.value.as_ref().unwrap().get() }
+    }
+}
+
+impl<T> BiLockAcquired<T> {
+    /// Get a mutable pinned reference to the locked value.
+    pub fn as_pin_mut(&mut self) -> Pin<&mut T> {
+        // Safety: we never allow moving a !Unpin value out of a bilock, nor
+        // allow mutable access to it
+        unsafe { Pin::new_unchecked(&mut *self.bilock.arc.value.as_ref().unwrap().get()) }
+    }
+    pub fn unlock(self) -> BiLock<T> {
+        let mut bilock = self.bilock;
+        mem::drop(BiLockGuard { bilock: &mut bilock });
+        bilock
+    }
+}
+
 /// Future returned by `BiLock::lock` which will resolve when the lock is
 /// acquired.
 #[cfg(feature = "bilock")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
-pub struct BiLockAcquire<'a, T> {
-    bilock: &'a BiLock<T>,
+pub struct BiLockAcquire<T> {
+    bilock: Option<BiLock<T>>,
 }
 
 // Pinning is never projected to fields
 #[cfg(feature = "bilock")]
-impl<T> Unpin for BiLockAcquire<'_, T> {}
+impl<T> Unpin for BiLockAcquire<T> {}
 
 #[cfg(feature = "bilock")]
-impl<'a, T> Future for BiLockAcquire<'a, T> {
-    type Output = BiLockGuard<'a, T>;
+impl<T> Future for BiLockAcquire<T> {
+    type Output = BiLockAcquired<T>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.bilock.poll_lock(cx)
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let bilock = self.bilock.as_mut().expect("Cannot poll after Ready");
+        match bilock.poll_lock(cx) {
+            Poll::Pending => return Poll::Pending,
+            Poll::Ready(guard) => {
+                mem::forget(guard);
+            }
+        }
+        Poll::Ready(BiLockAcquired {
+            bilock: self.bilock.take().unwrap()
+        })
     }
 }

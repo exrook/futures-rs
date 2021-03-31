@@ -62,7 +62,7 @@ fn contended(b: &mut Bencher) {
     let mut ctx = noop_context();
 
     b.iter(|| {
-        let (x, y) = BiLock::new(1);
+        let (mut x, mut y) = BiLock::new(1);
 
         //let mut x = LockStream::new(x);
         //let mut y = LockStream::new(y);
@@ -102,7 +102,7 @@ fn lock_unlock(b: &mut Bencher) {
     let mut ctx = noop_context();
 
     b.iter(|| {
-        let (x, y) = BiLock::new(1);
+        let (mut x, mut y) = BiLock::new(1);
 
         //let mut x = LockStream::new(x);
         //let mut y = LockStream::new(y);
@@ -141,7 +141,7 @@ fn concurrent(b: &mut Bencher) {
                     *guard = false;
                     count += 1;
                 }
-                drop(guard);
+                x = guard.unlock();
             }
         });
 
@@ -153,7 +153,7 @@ fn concurrent(b: &mut Bencher) {
                     *guard = true;
                     count += 1;
                 }
-                drop(guard);
+                y = guard.unlock();
             }
         });
 
