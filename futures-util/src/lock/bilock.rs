@@ -8,7 +8,7 @@ use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
 use core::ptr;
-use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::AtomicU8;
 use core::sync::atomic::Ordering::{SeqCst, Acquire, Release, AcqRel, Relaxed};
 use core::mem;
 use alloc::boxed::Box;
@@ -38,26 +38,31 @@ use alloc::sync::Arc;
 #[cfg_attr(docsrs, doc(cfg(feature = "bilock")))]
 pub struct BiLock<T> {
     arc: Arc<Inner<T>>,
-    index: bool,
+    token: u8,
+    left: bool,
 }
 
 impl<T> fmt::Debug for BiLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BiLock").field("arc", &self.arc).field("index", &self.index).finish()
+        f.debug_struct("BiLock").field("arc", &self.arc).field("token", &self.token).finish()
     }
 }
 
 struct Inner<T> {
-    state: AtomicUsize,
-    waker: UnsafeCell<Option<Waker>>,
+    token: AtomicU8,
+    waker: UnsafeCell<Option<(bool, Waker)>>,
     value: Option<UnsafeCell<T>>,
 }
 
 impl<T> fmt::Debug for Inner<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Inner").field("state", &self.state).field("waker", &self.waker).finish()
+        f.debug_struct("Inner").field("token", &self.token).field("waker", &self.waker).finish()
     }
 }
+
+const TOKEN_LOCK: u8 = 2;
+const TOKEN_WAKE: u8 = 1;
+const TOKEN_NULL: u8 = 0;
 
 unsafe impl<T: Send> Send for Inner<T> {}
 unsafe impl<T: Send> Sync for Inner<T> {}
@@ -76,12 +81,12 @@ impl<T> BiLock<T> {
     /// possible when `T` is `Unpin`.
     pub fn new(t: T) -> (Self, Self) {
         let arc = Arc::new(Inner {
-            state: AtomicUsize::new(0),
+            token: AtomicU8::new(TOKEN_LOCK),
             value: Some(UnsafeCell::new(t)),
             waker: UnsafeCell::new(None),
         });
 
-        (Self { arc: arc.clone(), index: true }, Self { arc, index: false })
+        (Self { arc: arc.clone(), token: TOKEN_WAKE, left: true }, Self { arc, token: TOKEN_NULL, left: false })
     }
 
     /// Attempt to acquire this lock, returning `Pending` if it can't be
@@ -103,47 +108,37 @@ impl<T> BiLock<T> {
     /// This function will panic if called outside the context of a future's
     /// task.
     pub fn poll_lock(&mut self, cx: &mut Context<'_>) -> Poll<BiLockGuard<'_, T>> {
-        let xor = if self.index { 0b10 } else { 0b01 };
-        let other = if !self.index { 0b10 } else { 0b01 };
-        match self.arc.state.fetch_or(xor, AcqRel) {
-            x if x & (xor<<2) != 0 => { // Other half has set our waker lock bit high
-                self.arc.state.fetch_and((other<<2)|0b11, Relaxed); // clear the lock bit
-                Poll::Ready(BiLockGuard { bilock: self })
-            }
-            x if x&other == 0 => { // uncontended
-                Poll::Ready(BiLockGuard { bilock: self })
-            }
-            x if x & other != 0 => { // Other 
-                let mut state = self.arc.state.fetch_or(xor<<2, AcqRel); // attempt to lock waker
-                if state & (xor<<2) != 0 {
-                    self.arc.state.fetch_and((other<<2)|0b11, Release); // clear the lock bit
-                    Poll::Ready(BiLockGuard { bilock: self })
-                } else {
-                loop {
-                    match state {
-                        x if x&0b11 == xor => { // lock is ours
-                            self.arc.state.fetch_and((other<<2) | 0b11, Release); // free waker lock
-                            break Poll::Ready(BiLockGuard{ bilock: self })
-                        }
-                        x if x&(other<<2) == 0 => { // waker lock is ours
-                            unsafe {
-                                ptr::replace(self.arc.waker.get(), Some(cx.waker().clone()));
+        let mut inserted_waker = false;
+        loop {
+            match self.token {
+                TOKEN_NULL => {
+                    if inserted_waker {
+                        break Poll::Pending;
+                    } 
+                }
+                TOKEN_WAKE => {
+                    {
+                        let our_waker = cx.waker();
+                        let waker = unsafe { &mut *self.arc.waker.get() };
+                        match waker {
+                            None => {
+                                *waker = Some((self.left, our_waker.clone()))
                             }
-                            if self.arc.state.fetch_and((other<<2)|0b11, AcqRel)&0b11 == xor { // free waker lock
-                                break Poll::Ready(BiLockGuard{ bilock: self }) // lock is now ours
-                            } else {
-                                break Poll::Pending
+                            Some((left, waker)) if !our_waker.will_wake(waker) => {
+                                *left = self.left;
+                                *waker = our_waker.clone()
                             }
+                            _ => { }
                         }
-                        x if x & (other << 2) != 0 => { // contention on waker lock
-                            state = self.arc.state.load(Acquire)
-                        }
-                        _ => unreachable!()
                     }
+                    inserted_waker = true;
                 }
+                TOKEN_LOCK => {
+                    break Poll::Ready(BiLockGuard { bilock: self });
                 }
+                _ => unreachable!()
             }
-            _ => unreachable!()
+            self.token = self.arc.token.swap(self.token, SeqCst);
         }
     }
 
@@ -183,31 +178,22 @@ impl<T> BiLock<T> {
     }
 
     fn unlock(&mut self) {
-        let xor = if self.index { 0b10 } else { 0b01 };
-        let other = if !self.index { 0b10 } else { 0b01 };
-        match self.arc.state.fetch_xor(xor, AcqRel) {
-            x if x&other == 0 => {} // uncontended, do nothing
-            x if x&other != 0 => { // other half is waiting, attempt to wake
-                let mut state = self.arc.state.fetch_or(xor<<2, AcqRel); // attempt to lock waker
-                loop {
-                    match state {
-                        x if x&(other<<2) == 0 => { // waker lock is ours
-                            let waker = unsafe {
-                                ptr::replace(self.arc.waker.get(), None)
-                            };
-                            if let Some(waker) = waker {
-                                waker.wake()
-                            } else {
-                            }
-                            self.arc.state.fetch_xor(0b1100, Release);// free waker lock, try to set other half's bit high
-                            break;
-                        }
-                        x if x & (other << 2) != 0 => { // contention on waker lock
-                            state = self.arc.state.load(Acquire)
-                        }
-                        _ => unreachable!()
+        self.token = self.arc.token.swap(self.token, SeqCst);
+        match self.token {
+            TOKEN_NULL => { // lock uncontended
+                // idk
+            }
+            TOKEN_WAKE => {
+                if let Some((left, wake)) = unsafe {
+                    ptr::replace(self.arc.waker.get(), None)
+                } {
+                    if self.left != left { // don't wake our own waker
+                        wake.wake()
                     }
                 }
+            }
+            TOKEN_LOCK => {
+                unreachable!()
             }
             _ => unreachable!()
         }
