@@ -10,6 +10,7 @@ use futures_test::task::{new_count_waker, panic_context};
 use std::thread;
 use std::sync::Arc;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn smoke() {
@@ -106,4 +107,45 @@ fn concurrent() {
             }
         }
     }
+}
+
+#[test]
+#[ignore = "long runtime"]
+fn exclusion() {
+    const N: usize = 1000000;
+    let (mut a, mut b) = BiLock::new(AtomicUsize::new(0));
+    let t1 = thread::spawn(move || {
+        for _ in 0..N {
+            let guard = block_on(a.lock());
+            let start = guard.load(Ordering::SeqCst);
+            let mut inc = 0;
+            let mut end = 0;
+            for i in 0..100 {
+                end = guard.fetch_add(1, Ordering::SeqCst) + 1;
+                inc += 1;
+                assert_eq!(start + inc, end);
+            }
+            a = guard.unlock();
+        };
+        a
+    });
+    let t2 = thread::spawn(move || {
+        for _ in 0..N {
+            let guard = block_on(b.lock());
+            let start = guard.load(Ordering::SeqCst);
+            let mut inc = 0;
+            let mut end = 0;
+            for i in 0..100 {
+                end = guard.fetch_add(1, Ordering::SeqCst) + 1;
+                inc += 1;
+                assert_eq!(start + inc, end);
+            }
+            b = guard.unlock();
+        };
+        b
+    });
+    let mut a = t1.join().unwrap();
+    let mut b = t2.join().unwrap();
+    let inner = a.reunite(b).unwrap().into_inner();
+    assert_eq!(inner, 2 * N * 100);
 }
