@@ -30,7 +30,12 @@ futures-sink = { path = "../futures-sink", version = "=0.4.0-alpha.0", default-f
 [dev-dependencies]
 futures = { path = "../futures", default-features = true }
 futures-test = { path = "../futures-test", default-features = true }
+criterion = "0.3"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[bench]]
+name = "sync_mpsc"
+harness = false

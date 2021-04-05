@@ -24,7 +24,12 @@ num_cpus = { version = "1.8.0", optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures" }
+criterion = "0.3"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[bench]]
+name = "thread_notify"
+harness = false

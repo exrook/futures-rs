@@ -52,7 +52,16 @@ pin-project-lite = "0.2.4"
 futures = { path = "../futures", features = ["async-await", "thread-pool"] }
 futures-test = { path = "../futures-test" }
 tokio = "0.1.11"
+criterion = "0.3"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[bench]]
+name = "bilock"
+harness = false
+
+[[bench]]
+name = "futures_unordered"
+harness = false

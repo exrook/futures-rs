@@ -1,7 +1,4 @@
-#![feature(test)]
-
-extern crate test;
-use crate::test::Bencher;
+use criterion::{criterion_group, criterion_main, Criterion};
 
 use futures::channel::oneshot;
 use futures::executor::block_on;
@@ -11,33 +8,36 @@ use futures::task::Poll;
 use std::collections::VecDeque;
 use std::thread;
 
-#[bench]
-fn oneshots(b: &mut Bencher) {
-    const NUM: usize = 10_000;
+fn oneshots(c: &mut Criterion) {
+    c.bench_function("oneshots", |b| {
+        const NUM: usize = 10_000;
 
-    b.iter(|| {
-        let mut txs = VecDeque::with_capacity(NUM);
-        let mut rxs = FuturesUnordered::new();
+        b.iter(|| {
+            let mut txs = VecDeque::with_capacity(NUM);
+            let mut rxs = FuturesUnordered::new();
 
-        for _ in 0..NUM {
-            let (tx, rx) = oneshot::channel();
-            txs.push_back(tx);
-            rxs.push(rx);
-        }
-
-        thread::spawn(move || {
-            while let Some(tx) = txs.pop_front() {
-                let _ = tx.send("hello");
+            for _ in 0..NUM {
+                let (tx, rx) = oneshot::channel();
+                txs.push_back(tx);
+                rxs.push(rx);
             }
-        });
 
-        block_on(future::poll_fn(move |cx| {
-            loop {
-                if let Poll::Ready(None) = rxs.poll_next_unpin(cx) {
-                    break;
+            thread::spawn(move || {
+                while let Some(tx) = txs.pop_front() {
+                    let _ = tx.send("hello");
                 }
-            }
-            Poll::Ready(())
-        }))
+            });
+
+            block_on(future::poll_fn(move |cx| {
+                loop {
+                    if let Poll::Ready(None) = rxs.poll_next_unpin(cx) {
+                        break;
+                    }
+                }
+                Poll::Ready(())
+            }))
+        });
     });
 }
+criterion_group!(bench, oneshots);
+criterion_main!(bench);

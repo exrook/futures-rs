@@ -1,5 +1,3 @@
-#![feature(test)]
-
 #[cfg(feature = "bilock")]
 mod bench {
     use futures::executor::block_on;
@@ -7,102 +5,107 @@ mod bench {
     use futures_test::task::noop_context;
     use futures_util::lock::BiLock;
 
+    use criterion::{criterion_group, Criterion};
     use std::mem::drop;
-    extern crate test;
-    use test::Bencher;
 
-    #[bench]
-    fn contended(b: &mut Bencher) {
+    fn contended(c: &mut Criterion) {
         let mut ctx = noop_context();
+        c.bench_function("contended", |b| {
+            b.iter(|| {
+                let (mut x, mut y) = BiLock::new(1);
 
-        b.iter(|| {
-            let (mut x, mut y) = BiLock::new(1);
+                for _ in 0..1000 {
+                    let x_guard = match x.poll_lock(&mut ctx) {
+                        Poll::Ready(guard) => guard,
+                        _ => panic!(),
+                    };
 
-            for _ in 0..1000 {
-                let x_guard = match x.poll_lock(&mut ctx) {
-                    Poll::Ready(guard) => guard,
-                    _ => panic!(),
-                };
+                    // Try poll second lock while first lock still holds the lock
+                    match y.poll_lock(&mut ctx) {
+                        Poll::Pending => (),
+                        _ => panic!(),
+                    };
 
-                // Try poll second lock while first lock still holds the lock
-                match y.poll_lock(&mut ctx) {
-                    Poll::Pending => (),
-                    _ => panic!(),
-                };
+                    drop(x_guard);
 
-                drop(x_guard);
+                    let y_guard = match y.poll_lock(&mut ctx) {
+                        Poll::Ready(guard) => guard,
+                        _ => panic!(),
+                    };
 
-                let y_guard = match y.poll_lock(&mut ctx) {
-                    Poll::Ready(guard) => guard,
-                    _ => panic!(),
-                };
-
-                drop(y_guard);
-            }
-            (x, y)
+                    drop(y_guard);
+                }
+            });
         });
     }
 
-    #[bench]
-    fn lock_unlock(b: &mut Bencher) {
+    fn lock_unlock(c: &mut Criterion) {
         let mut ctx = noop_context();
 
-        b.iter(|| {
-            let (mut x, mut y) = BiLock::new(1);
+        c.bench_function("lock_unlock", |b| {
+            b.iter(|| {
+                let (mut x, mut y) = BiLock::new(1);
 
-            for _ in 0..1000 {
-                let x_guard = match x.poll_lock(&mut ctx) {
-                    Poll::Ready(guard) => guard,
-                    _ => panic!(),
-                };
+                for _ in 0..1000 {
+                    let x_guard = match x.poll_lock(&mut ctx) {
+                        Poll::Ready(guard) => guard,
+                        _ => panic!(),
+                    };
 
-                drop(x_guard);
+                    drop(x_guard);
 
-                let y_guard = match y.poll_lock(&mut ctx) {
-                    Poll::Ready(guard) => guard,
-                    _ => panic!(),
-                };
+                    let y_guard = match y.poll_lock(&mut ctx) {
+                        Poll::Ready(guard) => guard,
+                        _ => panic!(),
+                    };
 
-                drop(y_guard);
-            }
-            (x, y)
-        })
+                    drop(y_guard);
+                }
+            })
+        });
     }
 
-    #[bench]
-    fn concurrent(b: &mut Bencher) {
+    fn concurrent(c: &mut Criterion) {
         use std::thread;
 
-        b.iter(|| {
-            let (mut x, mut y) = BiLock::new(false);
-            const ITERATION_COUNT: usize = 1000;
+        c.bench_function("concurrent", |b| {
+            b.iter(|| {
+                let (mut x, mut y) = BiLock::new(false);
+                const ITERATION_COUNT: usize = 1000;
 
-            let a = thread::spawn(move || {
-                let mut count = 0;
-                while count < ITERATION_COUNT {
-                    let mut guard = block_on(x.lock());
-                    if *guard {
-                        *guard = false;
-                        count += 1;
+                let a = thread::spawn(move || {
+                    let mut count = 0;
+                    while count < ITERATION_COUNT {
+                        let mut guard = block_on(x.lock());
+                        if *guard {
+                            *guard = false;
+                            count += 1;
+                        }
+                        x = guard.unlock();
                     }
-                    x = guard.unlock();
-                }
-            });
+                });
 
-            let b = thread::spawn(move || {
-                let mut count = 0;
-                while count < ITERATION_COUNT {
-                    let mut guard = block_on(y.lock());
-                    if !*guard {
-                        *guard = true;
-                        count += 1;
+                let b = thread::spawn(move || {
+                    let mut count = 0;
+                    while count < ITERATION_COUNT {
+                        let mut guard = block_on(y.lock());
+                        if !*guard {
+                            *guard = true;
+                            count += 1;
+                        }
+                        y = guard.unlock();
                     }
-                    y = guard.unlock();
-                }
-            });
+                });
 
-            a.join().unwrap();
-            b.join().unwrap();
-        })
+                a.join().unwrap();
+                b.join().unwrap();
+            })
+        });
     }
+
+    criterion_group!(benches, contended, lock_unlock, concurrent);
 }
+#[cfg(feature = "bilock")]
+criterion::criterion_main!(bench::benches);
+#[cfg(not(feature = "bilock"))]
+fn main() {}
